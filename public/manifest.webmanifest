@@ -1,0 +1,16 @@
+{
+  "name": "Indoor Care Scanner",
+  "short_name": "IndoorCare",
+  "description": "Identify indoor plants from live camera feed",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f6ef",
+  "theme_color": "#1c3a2d",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

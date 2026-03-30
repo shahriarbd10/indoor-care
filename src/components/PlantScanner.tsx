@@ -11,17 +11,31 @@ type Prediction = {
 
 type DetectState = "idle" | "scanning" | "processing" | "error";
 
-const CAPTURE_INTERVAL_MS = 1800;
 const CAPTURE_WIDTH = 640;
 const CAPTURE_HEIGHT = 480;
+const LOW_CONFIDENCE_THRESHOLD = 0.65;
 
 function parseApiError(payload: unknown): string {
-  if (!payload || typeof payload !== "object") return "Unable to detect the plant right now.";
+  if (!payload || typeof payload !== "object") {
+    return "We could not identify the plant this time. Try again with better lighting.";
+  }
 
   const maybeError = (payload as { error?: unknown }).error;
-  if (typeof maybeError === "string" && maybeError.trim()) return maybeError;
+  if (typeof maybeError === "string" && maybeError.trim()) {
+    const normalized = maybeError.toLowerCase();
 
-  return "Unable to detect the plant right now.";
+    if (normalized.includes("no confident") || normalized.includes("unknown")) {
+      return "Could not get a clear match. Move closer to one leaf and try again.";
+    }
+
+    if (normalized.includes("permission") || normalized.includes("camera")) {
+      return "Please allow camera access to continue plant detection.";
+    }
+
+    return "Plant check is temporarily unavailable. Please try again in a moment.";
+  }
+
+  return "We could not identify the plant this time. Try again with better lighting.";
 }
 
 export default function PlantScanner() {
@@ -30,7 +44,6 @@ export default function PlantScanner() {
   const guideRef = useRef<HTMLDivElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const inflightRef = useRef(false);
-  const timerRef = useRef<number | null>(null);
 
   const [cameraOpen, setCameraOpen] = useState(false);
   const [isStartingCamera, setIsStartingCamera] = useState(false);
@@ -82,22 +95,30 @@ export default function PlantScanner() {
       setPrediction(parsed);
       setLastUpdated(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
       setState("scanning");
-      setStatusMessage("Keep camera steady for updates.");
+      setStatusMessage(
+        parsed.confidence < LOW_CONFIDENCE_THRESHOLD
+          ? "Low confidence. Place camera directly on one leaf and try again."
+          : "Great match. You can detect another plant anytime."
+      );
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Detection failed.";
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : "Could not identify the plant. Try again with a clearer view.";
+
+      const userSafeMessage =
+        message.toLowerCase().includes("fetch") || message.toLowerCase().includes("network")
+          ? "Connection seems unstable. Please check internet and try again."
+          : message;
+
       setState("error");
-      setStatusMessage(message);
+      setStatusMessage(userSafeMessage);
     } finally {
       inflightRef.current = false;
     }
   }, []);
 
   const releaseCamera = useCallback(() => {
-    if (timerRef.current) {
-      window.clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
@@ -160,21 +181,7 @@ export default function PlantScanner() {
         if (cancelled) return;
 
         setState("scanning");
-        setStatusMessage("Point your camera at a leaf or flower.");
-
-        if (timerRef.current) {
-          window.clearInterval(timerRef.current);
-        }
-
-        timerRef.current = window.setInterval(() => {
-          void detectPlant();
-        }, CAPTURE_INTERVAL_MS);
-
-        window.setTimeout(() => {
-          if (!cancelled) {
-            void detectPlant();
-          }
-        }, 420);
+        setStatusMessage("Frame the plant inside the guide, then tap Detect Plant.");
       } catch {
         if (cancelled) return;
         setPermissionDenied(true);
@@ -251,7 +258,12 @@ export default function PlantScanner() {
         <video ref={videoRef} autoPlay muted playsInline className="scanner-video" />
         <canvas ref={canvasRef} className="hidden" />
 
-        <div className="scanner-target" aria-hidden />
+        <div className="scanner-target" aria-hidden>
+          <span className="scanner-corner scanner-corner-tl" />
+          <span className="scanner-corner scanner-corner-tr" />
+          <span className="scanner-corner scanner-corner-bl" />
+          <span className="scanner-corner scanner-corner-br" />
+        </div>
 
         <div className="scanner-gradient" aria-hidden />
         <div className="scanner-overlay">
@@ -286,6 +298,11 @@ export default function PlantScanner() {
                 />
               </div>
               <p className="scanner-result-meta">{confidenceLabel}</p>
+              {prediction.confidence < LOW_CONFIDENCE_THRESHOLD ? (
+                <p className="scanner-low-confidence-note">
+                  This result is uncertain. Place camera closer to the plant and keep one leaf centered.
+                </p>
+              ) : null}
               <p className="scanner-result-provider">Verified by {prediction.source.toUpperCase()}</p>
               {prediction.alternatives.length > 0 ? (
                 <ul className="scanner-alt-list">
@@ -315,16 +332,18 @@ export default function PlantScanner() {
               type="button"
               disabled={state === "processing"}
             >
-              Scan Now
+              {prediction ? "Detect Another" : "Detect Plant"}
             </button>
             <button
               className="scanner-ghost-button"
               onClick={() => {
+                setPrediction(null);
+                setStatusMessage("Ready for next plant. Frame it and tap Detect Plant.");
                 guideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
               type="button"
             >
-              View Tips
+              Next Plant
             </button>
           </div>
         </div>
@@ -360,11 +379,12 @@ export default function PlantScanner() {
         <button
           className="scanner-refresh-button"
           onClick={() => {
-            void detectPlant();
+            setPrediction(null);
+            setStatusMessage("Ready for next plant. Frame it and tap Detect Plant.");
           }}
           type="button"
         >
-          Refresh Detection
+          Clear Result
         </button>
       </div>
     </section>

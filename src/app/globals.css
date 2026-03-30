@@ -162,12 +162,55 @@ body {
 .scanner-target {
   position: absolute;
   inset: 50% auto auto 50%;
-  width: min(64vw, 300px);
-  aspect-ratio: 1.35;
+  width: min(72vw, 340px);
+  aspect-ratio: 1.12;
   transform: translate(-50%, -58%);
-  border: 1.5px solid rgba(216, 255, 216, 0.62);
-  border-radius: 18px;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(223, 255, 218, 0.4);
+  border-radius: 20px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 0 0 100vmax rgba(0, 0, 0, 0.12);
+}
+
+.scanner-corner {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-color: rgba(196, 255, 179, 0.95);
+  border-style: solid;
+  border-width: 0;
+}
+
+.scanner-corner-tl {
+  top: 9px;
+  left: 9px;
+  border-top-width: 3px;
+  border-left-width: 3px;
+  border-top-left-radius: 10px;
+}
+
+.scanner-corner-tr {
+  top: 9px;
+  right: 9px;
+  border-top-width: 3px;
+  border-right-width: 3px;
+  border-top-right-radius: 10px;
+}
+
+.scanner-corner-bl {
+  bottom: 9px;
+  left: 9px;
+  border-bottom-width: 3px;
+  border-left-width: 3px;
+  border-bottom-left-radius: 10px;
+}
+
+.scanner-corner-br {
+  bottom: 9px;
+  right: 9px;
+  border-bottom-width: 3px;
+  border-right-width: 3px;
+  border-bottom-right-radius: 10px;
 }
 
 .scanner-gradient {
@@ -316,6 +359,13 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: rgba(241, 255, 227, 0.86);
+}
+
+.scanner-low-confidence-note {
+  margin: 0.4rem 0 0;
+  color: #fff4d5;
+  font-size: 0.84rem;
+  font-weight: 560;
 }
 
 .scanner-alt-list {
@@ -626,6 +676,11 @@ body {
   .scanner-video-wrap,
   .scanner-video {
     min-height: 58vh;
+  }
+
+  .scanner-target {
+    width: min(80vw, 320px);
+    transform: translate(-50%, -56%);
   }
 
   .scanner-topline {

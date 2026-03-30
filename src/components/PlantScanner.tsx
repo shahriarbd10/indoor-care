@@ -27,12 +27,14 @@ function parseApiError(payload: unknown): string {
 export default function PlantScanner() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const guideRef = useRef<HTMLDivElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const inflightRef = useRef(false);
   const timerRef = useRef<number | null>(null);
 
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [state, setState] = useState<DetectState>("idle");
-  const [statusMessage, setStatusMessage] = useState("Preparing camera...");
+  const [statusMessage, setStatusMessage] = useState("Tap detect to open camera.");
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>("--");
@@ -89,60 +91,117 @@ export default function PlantScanner() {
     }
   }, []);
 
-  useEffect(() => {
-    let stopped = false;
-
-    async function startCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-          audio: false,
-        });
-
-        if (stopped) {
-          stream.getTracks().forEach((track) => track.stop());
-          return;
-        }
-
-        streamRef.current = stream;
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-        }
-
-        setState("scanning");
-        setStatusMessage("Point your camera at a leaf or flower.");
-
-        timerRef.current = window.setInterval(() => {
-          void detectPlant();
-        }, CAPTURE_INTERVAL_MS);
-      } catch {
-        setPermissionDenied(true);
-        setState("error");
-        setStatusMessage("Camera access was denied or unavailable.");
-      }
+  const releaseCamera = useCallback(() => {
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
     }
 
-    void startCamera();
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
 
-    return () => {
-      stopped = true;
-      if (timerRef.current) window.clearInterval(timerRef.current);
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
+  const closeCamera = useCallback(() => {
+    releaseCamera();
+    setCameraOpen(false);
+    setState("idle");
+    setStatusMessage("Tap detect to open camera.");
+  }, [releaseCamera]);
+
+  const openCamera = useCallback(async () => {
+    try {
+      setPermissionDenied(false);
+      setStatusMessage("Opening camera...");
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      });
+
+      streamRef.current = stream;
+      setCameraOpen(true);
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
       }
-    };
+
+      setState("scanning");
+      setStatusMessage("Point your camera at a leaf or flower.");
+
+      timerRef.current = window.setInterval(() => {
+        void detectPlant();
+      }, CAPTURE_INTERVAL_MS);
+
+      window.setTimeout(() => {
+        void detectPlant();
+      }, 380);
+    } catch {
+      setPermissionDenied(true);
+      setState("error");
+      setStatusMessage("Camera access was denied or unavailable.");
+    }
   }, [detectPlant]);
+
+  useEffect(() => {
+    return () => {
+      releaseCamera();
+    };
+  }, [releaseCamera]);
+
+  if (!cameraOpen) {
+    return (
+      <section className="scanner-launch">
+        <div className="scanner-launch-card">
+          <div className="scanner-launch-logo" aria-hidden>
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="M12.8 2.6c3.4 2.4 5.1 5.3 5.1 8.5 0 4.6-3.2 8.3-7.6 9.6-3.1.9-5.5 3.1-6.4 5.9-.2.8-1.4.8-1.6-.1-1-3.6-.2-7.1 2.4-9.7 2.7-2.6 7.9-4 7.9-8.6 0-1.5-.4-3.2-.9-4.7-.2-.6.4-1.2 1.1-.9Z" />
+            </svg>
+          </div>
+          <p className="page-eyebrow">Plant Detection</p>
+          <h1 className="scanner-launch-title">Detect Plants On Demand</h1>
+          <p className="scanner-launch-copy">
+            Camera opens only when you tap. Close anytime to return to this home screen.
+          </p>
+
+          {prediction ? (
+            <p className="scanner-last-result">
+              Last result: <strong>{prediction.name}</strong>
+            </p>
+          ) : null}
+
+          {permissionDenied ? (
+            <p className="scanner-warning">
+              Camera permission is required. Enable it and tap Detect Plant again.
+            </p>
+          ) : null}
+
+          <button className="scanner-launch-button" onClick={() => void openCamera()} type="button">
+            Detect Plant
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="scanner-shell">
       <div className="scanner-video-wrap">
+        <button className="scanner-close-button" onClick={closeCamera} type="button" aria-label="Close camera">
+          <svg viewBox="0 0 24 24" focusable="false" aria-hidden>
+            <path d="M6.7 5.3 12 10.6l5.3-5.3a1 1 0 1 1 1.4 1.4L13.4 12l5.3 5.3a1 1 0 0 1-1.4 1.4L12 13.4l-5.3 5.3a1 1 0 0 1-1.4-1.4l5.3-5.3-5.3-5.3a1 1 0 1 1 1.4-1.4Z" />
+          </svg>
+        </button>
         <video ref={videoRef} autoPlay muted playsInline className="scanner-video" />
         <canvas ref={canvasRef} className="hidden" />
 
@@ -151,7 +210,17 @@ export default function PlantScanner() {
         <div className="scanner-gradient" aria-hidden />
         <div className="scanner-overlay">
           <div className="scanner-topline">
-            <p className="scanner-kicker">Plant Intelligence</p>
+            <div className="scanner-brand">
+              <span className="scanner-brand-icon" aria-hidden>
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M12.8 2.6c3.4 2.4 5.1 5.3 5.1 8.5 0 4.6-3.2 8.3-7.6 9.6-3.1.9-5.5 3.1-6.4 5.9-.2.8-1.4.8-1.6-.1-1-3.6-.2-7.1 2.4-9.7 2.7-2.6 7.9-4 7.9-8.6 0-1.5-.4-3.2-.9-4.7-.2-.6.4-1.2 1.1-.9Z" />
+                </svg>
+              </span>
+              <div>
+                <p className="scanner-kicker">Plant Intelligence</p>
+                <p className="scanner-brand-title">Indoor Care</p>
+              </div>
+            </div>
             <p className={`scanner-state-pill scanner-state-${state}`}>
               {state === "processing" ? "Processing" : state === "error" ? "Attention" : "Live"}
             </p>
@@ -190,10 +259,32 @@ export default function PlantScanner() {
               <p>Awaiting first strong match...</p>
             </div>
           ) : null}
+
+          <div className="scanner-mobile-actions">
+            <button
+              className="scanner-primary-button"
+              onClick={() => {
+                void detectPlant();
+              }}
+              type="button"
+              disabled={state === "processing"}
+            >
+              Scan Now
+            </button>
+            <button
+              className="scanner-ghost-button"
+              onClick={() => {
+                guideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              type="button"
+            >
+              View Tips
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="scanner-guide">
+      <div ref={guideRef} className="scanner-guide">
         <div className="scanner-panel-head">
           <h2>Session Insights</h2>
           <p>Updated {lastUpdated}</p>

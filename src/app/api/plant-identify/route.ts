@@ -4,6 +4,7 @@ type NormalizedResult = {
   name: string;
   confidence: number;
   source: "plantnet" | "plantid";
+  description?: string;
   alternatives: Array<{ name: string; confidence: number }>;
 };
 
@@ -13,7 +14,7 @@ type ProviderResult = {
   error?: string;
 };
 
-const CONFIDENCE_THRESHOLD = Number(process.env.PLANT_CONFIDENCE_THRESHOLD ?? "0.65");
+const CONFIDENCE_THRESHOLD = Number(process.env.PLANT_CONFIDENCE_THRESHOLD ?? "0.45");
 
 function decodeDataUrl(input: string): Buffer | null {
   const commaIndex = input.indexOf(",");
@@ -112,6 +113,11 @@ async function identifyWithPlantId(imageDataUrl: string): Promise<ProviderResult
     suggestions?: Array<{
       plant_name?: string;
       probability?: number;
+      plant_details?: {
+        wiki_description?: {
+          value?: string;
+        };
+      };
     }>;
     message?: string;
   };
@@ -138,6 +144,7 @@ async function identifyWithPlantId(imageDataUrl: string): Promise<ProviderResult
       name: ranked[0].name,
       confidence: ranked[0].confidence,
       source: "plantid",
+      description: payload.suggestions?.[0]?.plant_details?.wiki_description?.value,
       alternatives: ranked.slice(1, 4),
     },
   };

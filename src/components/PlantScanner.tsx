@@ -6,6 +6,7 @@ type Prediction = {
   name: string;
   confidence: number;
   source: "plantnet" | "plantid";
+  description?: string;
   alternatives: Array<{ name: string; confidence: number }>;
 };
 
@@ -13,7 +14,7 @@ type DetectState = "idle" | "scanning" | "processing" | "error";
 
 const CAPTURE_WIDTH = 640;
 const CAPTURE_HEIGHT = 480;
-const LOW_CONFIDENCE_THRESHOLD = 0.65;
+const LOW_CONFIDENCE_THRESHOLD = 0.45;
 
 function parseApiError(payload: unknown): string {
   if (!payload || typeof payload !== "object") {
@@ -57,6 +58,13 @@ export default function PlantScanner() {
   const confidenceLabel = useMemo(() => {
     if (!prediction) return null;
     return `${Math.round(prediction.confidence * 100)}% confidence`;
+  }, [prediction]);
+
+  const confidenceLevel = useMemo(() => {
+    if (!prediction) return null;
+    if (prediction.confidence < 0.45) return "Low";
+    if (prediction.confidence < 0.75) return "Medium";
+    return "High";
   }, [prediction]);
 
   const releaseCamera = useCallback(() => {
@@ -320,10 +328,21 @@ export default function PlantScanner() {
                 />
               </div>
               <p className="scanner-result-meta">{confidenceLabel}</p>
+              {confidenceLevel ? (
+                <p className={`scanner-confidence-level scanner-confidence-${confidenceLevel.toLowerCase()}`}>
+                  Confidence level: {confidenceLevel}
+                </p>
+              ) : null}
               {prediction.confidence < LOW_CONFIDENCE_THRESHOLD ? (
                 <p className="scanner-low-confidence-note">
                   This result is uncertain. Place camera closer to the plant and keep one leaf centered.
                 </p>
+              ) : null}
+              {prediction.description ? (
+                <div className="scanner-description-card">
+                  <p className="scanner-description-title">Plant overview</p>
+                  <p className="scanner-description-text">{prediction.description}</p>
+                </div>
               ) : null}
               <p className="scanner-result-provider">Verified by {prediction.source.toUpperCase()}</p>
               {prediction.alternatives.length > 0 ? (
@@ -364,6 +383,11 @@ export default function PlantScanner() {
             <button
               className="scanner-ghost-button"
               onClick={() => {
+                if (frozenFrame) {
+                  handleNextDetection();
+                  return;
+                }
+
                 setPrediction(null);
                 setFrozenFrame(null);
                 setStatusMessage("Ready for next plant. Frame it and tap Detect Plant.");
@@ -371,7 +395,7 @@ export default function PlantScanner() {
               }}
               type="button"
             >
-              Next Plant
+              {frozenFrame ? "Next Detection" : "Next Plant"}
             </button>
           </div>
         </div>

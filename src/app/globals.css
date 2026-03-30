@@ -159,6 +159,10 @@ body {
   object-fit: cover;
 }
 
+.scanner-frozen-image {
+  filter: saturate(1.02) contrast(1.02);
+}
+
 .scanner-target {
   position: absolute;
   inset: 50% auto auto 50%;

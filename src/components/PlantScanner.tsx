@@ -47,6 +47,7 @@ export default function PlantScanner() {
 
   const [cameraOpen, setCameraOpen] = useState(false);
   const [isStartingCamera, setIsStartingCamera] = useState(false);
+  const [frozenFrame, setFrozenFrame] = useState<string | null>(null);
   const [state, setState] = useState<DetectState>("idle");
   const [statusMessage, setStatusMessage] = useState("Tap detect to open camera.");
   const [prediction, setPrediction] = useState<Prediction | null>(null);
@@ -57,6 +58,17 @@ export default function PlantScanner() {
     if (!prediction) return null;
     return `${Math.round(prediction.confidence * 100)}% confidence`;
   }, [prediction]);
+
+  const releaseCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
 
   const detectPlant = useCallback(async () => {
     if (inflightRef.current) return;
@@ -98,8 +110,13 @@ export default function PlantScanner() {
       setStatusMessage(
         parsed.confidence < LOW_CONFIDENCE_THRESHOLD
           ? "Low confidence. Place camera directly on one leaf and try again."
-          : "Great match. You can detect another plant anytime."
+          : "Great match saved. Tap Next Detection when you want to scan again."
       );
+
+      if (parsed.confidence >= LOW_CONFIDENCE_THRESHOLD) {
+        setFrozenFrame(imageBase64);
+        releaseCamera();
+      }
     } catch (error) {
       const message =
         error instanceof Error && error.message.trim()
@@ -116,18 +133,7 @@ export default function PlantScanner() {
     } finally {
       inflightRef.current = false;
     }
-  }, []);
-
-  const releaseCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  }, []);
+  }, [releaseCamera]);
 
   const closeCamera = useCallback(() => {
     releaseCamera();
@@ -155,6 +161,7 @@ export default function PlantScanner() {
       });
 
       streamRef.current = stream;
+      setFrozenFrame(null);
       setCameraOpen(true);
     } catch {
       setPermissionDenied(true);
@@ -166,6 +173,7 @@ export default function PlantScanner() {
 
   useEffect(() => {
     if (!cameraOpen) return;
+    if (!isStartingCamera) return;
     if (!streamRef.current || !videoRef.current) return;
 
     let cancelled = false;
@@ -199,7 +207,15 @@ export default function PlantScanner() {
     return () => {
       cancelled = true;
     };
-  }, [cameraOpen, detectPlant]);
+  }, [cameraOpen, detectPlant, isStartingCamera]);
+
+  const handleNextDetection = useCallback(() => {
+    setPrediction(null);
+    setFrozenFrame(null);
+    setState("idle");
+    setStatusMessage("Opening camera...");
+    void openCamera();
+  }, [openCamera]);
 
   useEffect(() => {
     return () => {
@@ -255,15 +271,21 @@ export default function PlantScanner() {
             <path d="M6.7 5.3 12 10.6l5.3-5.3a1 1 0 1 1 1.4 1.4L13.4 12l5.3 5.3a1 1 0 0 1-1.4 1.4L12 13.4l-5.3 5.3a1 1 0 0 1-1.4-1.4l5.3-5.3-5.3-5.3a1 1 0 1 1 1.4-1.4Z" />
           </svg>
         </button>
-        <video ref={videoRef} autoPlay muted playsInline className="scanner-video" />
+        {frozenFrame ? (
+          <img src={frozenFrame} alt="Captured plant" className="scanner-video scanner-frozen-image" />
+        ) : (
+          <video ref={videoRef} autoPlay muted playsInline className="scanner-video" />
+        )}
         <canvas ref={canvasRef} className="hidden" />
 
-        <div className="scanner-target" aria-hidden>
-          <span className="scanner-corner scanner-corner-tl" />
-          <span className="scanner-corner scanner-corner-tr" />
-          <span className="scanner-corner scanner-corner-bl" />
-          <span className="scanner-corner scanner-corner-br" />
-        </div>
+        {!frozenFrame ? (
+          <div className="scanner-target" aria-hidden>
+            <span className="scanner-corner scanner-corner-tl" />
+            <span className="scanner-corner scanner-corner-tr" />
+            <span className="scanner-corner scanner-corner-bl" />
+            <span className="scanner-corner scanner-corner-br" />
+          </div>
+        ) : null}
 
         <div className="scanner-gradient" aria-hidden />
         <div className="scanner-overlay">
@@ -327,17 +349,23 @@ export default function PlantScanner() {
             <button
               className="scanner-primary-button"
               onClick={() => {
+                if (frozenFrame) {
+                  handleNextDetection();
+                  return;
+                }
+
                 void detectPlant();
               }}
               type="button"
-              disabled={state === "processing"}
+              disabled={state === "processing" || isStartingCamera}
             >
-              {prediction ? "Detect Another" : "Detect Plant"}
+              {frozenFrame ? "Next Detection" : prediction ? "Detect Another" : "Detect Plant"}
             </button>
             <button
               className="scanner-ghost-button"
               onClick={() => {
                 setPrediction(null);
+                setFrozenFrame(null);
                 setStatusMessage("Ready for next plant. Frame it and tap Detect Plant.");
                 guideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
               }}

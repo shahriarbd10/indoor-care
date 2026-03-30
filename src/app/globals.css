@@ -105,12 +105,18 @@ body {
   filter: brightness(1.06);
 }
 
+.scanner-launch-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .scanner-shell {
   width: min(1050px, 100%);
   margin-inline: auto;
   display: grid;
   gap: 1rem;
   grid-template-columns: 1fr;
+  align-content: start;
 }
 
 .scanner-video-wrap {
@@ -609,9 +615,17 @@ body {
 }
 
 @media (max-width: 640px) {
+  .scanner-launch {
+    min-height: calc(100dvh - 10.2rem);
+  }
+
+  .scanner-launch-card {
+    border-radius: 20px;
+  }
+
   .scanner-video-wrap,
   .scanner-video {
-    min-height: 63vh;
+    min-height: 58vh;
   }
 
   .scanner-topline {

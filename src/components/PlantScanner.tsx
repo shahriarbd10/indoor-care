@@ -33,6 +33,7 @@ export default function PlantScanner() {
   const timerRef = useRef<number | null>(null);
 
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [isStartingCamera, setIsStartingCamera] = useState(false);
   const [state, setState] = useState<DetectState>("idle");
   const [statusMessage, setStatusMessage] = useState("Tap detect to open camera.");
   const [prediction, setPrediction] = useState<Prediction | null>(null);
@@ -109,6 +110,7 @@ export default function PlantScanner() {
 
   const closeCamera = useCallback(() => {
     releaseCamera();
+    setIsStartingCamera(false);
     setCameraOpen(false);
     setState("idle");
     setStatusMessage("Tap detect to open camera.");
@@ -116,6 +118,9 @@ export default function PlantScanner() {
 
   const openCamera = useCallback(async () => {
     try {
+      if (isStartingCamera) return;
+
+      setIsStartingCamera(true);
       setPermissionDenied(false);
       setStatusMessage("Opening camera...");
 
@@ -130,28 +135,64 @@ export default function PlantScanner() {
 
       streamRef.current = stream;
       setCameraOpen(true);
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-
-      setState("scanning");
-      setStatusMessage("Point your camera at a leaf or flower.");
-
-      timerRef.current = window.setInterval(() => {
-        void detectPlant();
-      }, CAPTURE_INTERVAL_MS);
-
-      window.setTimeout(() => {
-        void detectPlant();
-      }, 380);
     } catch {
       setPermissionDenied(true);
       setState("error");
       setStatusMessage("Camera access was denied or unavailable.");
+      setIsStartingCamera(false);
     }
-  }, [detectPlant]);
+  }, [isStartingCamera]);
+
+  useEffect(() => {
+    if (!cameraOpen) return;
+    if (!streamRef.current || !videoRef.current) return;
+
+    let cancelled = false;
+
+    async function attachAndStart() {
+      const videoEl = videoRef.current;
+      const stream = streamRef.current;
+      if (!videoEl || !stream) return;
+
+      try {
+        videoEl.srcObject = stream;
+        await videoEl.play();
+        if (cancelled) return;
+
+        setState("scanning");
+        setStatusMessage("Point your camera at a leaf or flower.");
+
+        if (timerRef.current) {
+          window.clearInterval(timerRef.current);
+        }
+
+        timerRef.current = window.setInterval(() => {
+          void detectPlant();
+        }, CAPTURE_INTERVAL_MS);
+
+        window.setTimeout(() => {
+          if (!cancelled) {
+            void detectPlant();
+          }
+        }, 420);
+      } catch {
+        if (cancelled) return;
+        setPermissionDenied(true);
+        setState("error");
+        setStatusMessage("Unable to start camera preview.");
+      } finally {
+        if (!cancelled) {
+          setIsStartingCamera(false);
+        }
+      }
+    }
+
+    void attachAndStart();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cameraOpen, detectPlant]);
 
   useEffect(() => {
     return () => {
@@ -186,8 +227,13 @@ export default function PlantScanner() {
             </p>
           ) : null}
 
-          <button className="scanner-launch-button" onClick={() => void openCamera()} type="button">
-            Detect Plant
+          <button
+            className="scanner-launch-button"
+            onClick={() => void openCamera()}
+            type="button"
+            disabled={isStartingCamera}
+          >
+            {isStartingCamera ? "Opening..." : "Detect Plant"}
           </button>
         </div>
       </section>

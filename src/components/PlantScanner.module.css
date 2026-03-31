@@ -120,11 +120,10 @@
 
 .guideFrame {
   position: absolute;
-  top: 48%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0;
+  margin: auto;
   width: min(72%, 290px);
-  aspect-ratio: 1.05;
+  height: min(42vh, 300px);
   border-radius: 20px;
   border: 2px solid rgba(203, 251, 185, 0.95);
   box-shadow:
@@ -275,6 +274,9 @@
   height: 2.6rem;
   border-radius: 10px;
   background: radial-gradient(circle at 40% 30%, #b7f39f 0%, #4f9861 80%);
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(238, 255, 230, 0.32);
 }
 
 .resultInfo {
@@ -462,6 +464,11 @@
 
   .phoneCard {
     min-height: 74dvh;
+  }
+
+  .guideFrame {
+    width: min(78%, 290px);
+    height: min(38vh, 280px);
   }
 
   .captureActions,

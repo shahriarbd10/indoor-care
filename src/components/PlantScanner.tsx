@@ -33,8 +33,8 @@ const CAPTURE_HEIGHT = 960;
 const MODERATE_CONFIDENCE_THRESHOLD = 0.4;
 const MIN_DETECTED_CONFIDENCE = 0.15;
 const MIN_ALTERNATIVE_CONFIDENCE = 0.2;
-const SCAN_PHASE_DURATION_MS = 5000;
-const QUALITY_BOOST_DURATION_MS = 2500;
+const SCAN_PHASE_DURATION_MS = 2000;
+const QUALITY_BOOST_DURATION_MS = 2000;
 const RECHECK_DELAY_MS = 900;
 
 function sleep(ms: number) {
@@ -87,6 +87,7 @@ export default function PlantScanner() {
   const [statusMessage, setStatusMessage] = useState("Frame one leaf clearly for the best result.");
   const [scanHeadline, setScanHeadline] = useState("Smart scan ready");
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+  const [capturedFrame, setCapturedFrame] = useState<string | null>(null);
   const [savedImageUrl, setSavedImageUrl] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("capture");
@@ -198,6 +199,7 @@ export default function PlantScanner() {
       setResults(mapped);
       setSelectedIndex(0);
       setBackgroundImage(imageBase64);
+      setCapturedFrame(imageBase64);
       setSavedImageUrl(null);
       setViewMode("results");
       setState("idle");
@@ -230,6 +232,16 @@ export default function PlantScanner() {
     setState("scanning");
     setScanHeadline("Scanning in progress");
     setStatusMessage("Keep the leaf centered in the marked area.");
+
+    if (capturedFrame) {
+      const { prediction } = await identifyFromImage(capturedFrame);
+      if (prediction) {
+        bestPrediction = prediction;
+        bestFrame = capturedFrame;
+        bestConfidence = prediction.confidence;
+      }
+      setStatusMessage("Using captured frame and validating with live scan...");
+    }
 
     while (scanLoopActiveRef.current && sessionToken === scanSessionTokenRef.current) {
       const frame = captureFrameFromVideo();
@@ -279,7 +291,7 @@ export default function PlantScanner() {
 
     const secondPhaseStart = Date.now();
     setScanHeadline("Quality boost scan");
-    setStatusMessage("Keep camera still for 2-3 seconds for better quality.");
+    setStatusMessage("Keep camera still for 2 seconds for better quality.");
 
     while (scanLoopActiveRef.current && sessionToken === scanSessionTokenRef.current) {
       const frame = captureFrameFromVideo();
@@ -327,7 +339,7 @@ export default function PlantScanner() {
         ? "We found weak matches only. Keep camera still, center one leaf, and scan again."
         : "No plant detected. Please scan a plant leaf and keep it centered."
     );
-  }, [cameraOpen, captureFrameFromVideo, identifyFromImage, openResultFromPrediction]);
+  }, [cameraOpen, captureFrameFromVideo, capturedFrame, identifyFromImage, openResultFromPrediction]);
 
   const openCamera = useCallback(async () => {
     if (isStartingCamera) return;
@@ -337,6 +349,7 @@ export default function PlantScanner() {
     setPermissionDenied(false);
     setViewMode("capture");
     setBackgroundImage(null);
+    setCapturedFrame(null);
     setResults([]);
     setSelectedIndex(0);
     setSavedImageUrl(null);
@@ -354,6 +367,7 @@ export default function PlantScanner() {
     setResults([]);
     setSelectedIndex(0);
     setBackgroundImage(null);
+    setCapturedFrame(null);
     setSavedImageUrl(null);
     setState("idle");
     setScanHeadline("Smart scan ready");
@@ -364,6 +378,19 @@ export default function PlantScanner() {
     closeScanner();
     void openCamera();
   }, [closeScanner, openCamera]);
+
+  const captureForScan = useCallback(() => {
+    const frame = captureFrameFromVideo();
+    if (!frame) {
+      setScanHeadline("Capture failed");
+      setStatusMessage("Could not capture frame yet. Hold steady and try again.");
+      return;
+    }
+
+    setCapturedFrame(frame);
+    setScanHeadline("Frame captured");
+    setStatusMessage("Great. Tap Scan to run a 2+2 second intelligent scan.");
+  }, [captureFrameFromVideo]);
 
   useEffect(() => {
     if (!cameraOpen || !isStartingCamera) return;
@@ -397,11 +424,9 @@ export default function PlantScanner() {
         await video.play();
         if (cancelled) return;
 
-        setState("scanning");
-        setScanHeadline("Scanning in progress");
-        setStatusMessage("Preparing smart scan...");
-
-        await startSmartScan();
+        setState("idle");
+        setScanHeadline("Smart scan ready");
+        setStatusMessage("Capture a frame or tap Scan to start the 2+2 second scan.");
       } catch {
         if (cancelled) return;
         if (localStream) {
@@ -422,7 +447,7 @@ export default function PlantScanner() {
       cancelled = true;
       stopSmartScan();
     };
-  }, [cameraOpen, isStartingCamera, startSmartScan, stopSmartScan]);
+  }, [cameraOpen, isStartingCamera, stopSmartScan]);
 
   useEffect(() => {
     return () => {
@@ -482,18 +507,20 @@ export default function PlantScanner() {
               <p className={styles.captureHint}>{statusMessage}</p>
               <p className={styles.captureSupport}>Tip: keep the leaf centered and avoid shadows for higher confidence.</p>
             </div>
-            {state === "error" ? (
+            {capturedFrame ? <p className={styles.captureAuto}>Captured frame ready for scan.</p> : <p className={styles.captureAuto}>Ready when you are.</p>}
+            <div className={styles.captureActions}>
+              <button type="button" className={styles.secondaryBtn} onClick={captureForScan} disabled={isStartingCamera || state === "scanning"}>
+                Capture
+              </button>
               <button
                 type="button"
-                className={styles.secondaryBtn}
+                className={styles.primaryBtn}
                 onClick={() => void startSmartScan()}
-                disabled={isStartingCamera}
+                disabled={isStartingCamera || state === "scanning"}
               >
-                Scan Again
+                {state === "scanning" ? "Scanning..." : "Scan"}
               </button>
-            ) : (
-              <p className={styles.captureAuto}>Auto-scanning in progress...</p>
-            )}
+            </div>
           </div>
         ) : null}
 
@@ -517,7 +544,10 @@ export default function PlantScanner() {
                     setViewMode("details");
                   }}
                 >
-                  <div className={styles.resultThumb} />
+                  <div
+                    className={styles.resultThumb}
+                    style={backgroundImage ? { backgroundImage: `url(${backgroundImage})` } : undefined}
+                  />
                   <div className={styles.resultInfo}>
                     <p className={styles.resultName}>{item.name}</p>
                     <p className={styles.resultMeta}>

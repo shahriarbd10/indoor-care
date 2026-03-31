@@ -88,11 +88,11 @@
 /* --- Mockup Redesign Styles --- */
 .guideFrame {
   position: absolute;
-  top: 35%;
+  top: 25%;
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(85%, 320px);
-  height: min(45vh, 320px);
+  height: min(40vh, 280px);
   pointer-events: none;
   z-index: 5;
 }
@@ -132,12 +132,12 @@
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 1rem 1.25rem 2rem;
+  padding: 1rem 1.25rem 2.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
-  background: linear-gradient(to top, rgba(14, 25, 20, 1) 15%, rgba(14, 25, 20, 0.9) 55%, transparent 100%);
+  gap: 1.25rem;
+  background: linear-gradient(to top, rgba(14, 25, 20, 1) 15%, rgba(14, 25, 20, 0.9) 65%, transparent 100%);
   z-index: 10;
 }
 
@@ -287,6 +287,77 @@
   box-shadow: 0 0 12px rgba(74, 222, 128, 0.25);
 }
 /* --- End Mockup Redesign Styles --- */
+
+.resultsLayer,
+.detailsLayer {
+  position: relative;
+  z-index: 4;
+  padding: 5rem 1rem 1.1rem;
+  color: #f0f9ed;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.resultsHeader {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.resultsKicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(214, 237, 205, 0.84);
+}
+
+.resultsCaption {
+  margin: 0;
+  font-size: 0.8rem;
+  color: rgba(226, 245, 219, 0.88);
+}
+
+.resultsIntro {
+  margin: 0;
+  color: rgba(233, 247, 230, 0.92);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.captureActions {
+  margin-top: auto;
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.primaryBtn,
+.secondaryBtn {
+  min-height: 2.5rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.5rem 0.95rem;
+  font-weight: 620;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.primaryBtn {
+  background: linear-gradient(130deg, #caff9f, #8ee47f 78%);
+  color: #173d2d;
+}
+
+.secondaryBtn {
+  background: rgba(240, 252, 242, 0.14);
+  border-color: rgba(230, 250, 230, 0.35);
+  color: #edf9e9;
+}
+
+.secondaryBtn:hover,
+.primaryBtn:hover {
+  filter: brightness(1.05);
+}
 
 .resultList {
   display: grid;

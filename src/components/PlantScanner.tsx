@@ -187,35 +187,16 @@ export default function PlantScanner() {
   const openCamera = useCallback(async () => {
     if (isStartingCamera) return;
 
-    try {
-      setIsStartingCamera(true);
-      setPermissionDenied(false);
-      setCameraOpen(true);
-      setViewMode("capture");
-      setBackgroundImage(null);
-      setResults([]);
-      setSelectedIndex(0);
-      setSavedImageUrl(null);
-      setStatusMessage("Opening camera...");
-      autoScanPendingRef.current = true;
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 1920 },
-        },
-        audio: false,
-      });
-
-      streamRef.current = stream;
-    } catch {
-      setPermissionDenied(true);
-      setState("error");
-      setStatusMessage("Camera access is required to scan plants.");
-      setIsStartingCamera(false);
-      autoScanPendingRef.current = false;
-    }
+    setIsStartingCamera(true);
+    setPermissionDenied(false);
+    setViewMode("capture");
+    setBackgroundImage(null);
+    setResults([]);
+    setSelectedIndex(0);
+    setSavedImageUrl(null);
+    setStatusMessage("Opening camera...");
+    autoScanPendingRef.current = true;
+    setCameraOpen(true);
   }, [isStartingCamera]);
 
   const closeScanner = useCallback(() => {
@@ -239,17 +220,33 @@ export default function PlantScanner() {
 
   useEffect(() => {
     if (!cameraOpen || !isStartingCamera) return;
-    if (!streamRef.current || !videoRef.current) return;
 
     let cancelled = false;
 
     async function attach() {
+      let localStream: MediaStream | null = null;
+
       const video = videoRef.current;
-      const stream = streamRef.current;
-      if (!video || !stream) return;
+      if (!video) return;
 
       try {
-        video.srcObject = stream;
+        localStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 1920 },
+          },
+          audio: false,
+        });
+
+        if (cancelled) {
+          localStream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        streamRef.current = localStream;
+
+        video.srcObject = localStream;
         await video.play();
         if (cancelled) return;
 
@@ -262,8 +259,12 @@ export default function PlantScanner() {
         }
       } catch {
         if (cancelled) return;
+        if (localStream) {
+          localStream.getTracks().forEach((track) => track.stop());
+        }
         setState("error");
-        setStatusMessage("Unable to start camera preview.");
+        setPermissionDenied(true);
+        setStatusMessage("Camera access is required to scan plants.");
       } finally {
         if (!cancelled) {
           setIsStartingCamera(false);

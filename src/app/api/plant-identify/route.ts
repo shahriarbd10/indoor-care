@@ -75,12 +75,14 @@ async function identifyWithPlantnet(imageBuffer: Buffer): Promise<ProviderResult
 
   const ranked = (payload.results ?? [])
     .map((item) => {
-      const commonName = item.species?.commonNames?.[0]?.trim();
+      const allCommons = (item.species?.commonNames ?? []).filter(Boolean);
+      const commonName = allCommons[0]?.trim();
       const scientificName = item.species?.scientificNameWithoutAuthor?.trim();
 
       return {
         name: commonName || scientificName || "Unknown plant",
         confidence: Number(item.score ?? 0),
+        allCommons: allCommons.slice(0, 3).join(", "),
       };
     })
     .filter((item) => item.name && Number.isFinite(item.confidence))
@@ -90,18 +92,21 @@ async function identifyWithPlantnet(imageBuffer: Buffer): Promise<ProviderResult
     return { ok: false, error: "No confident match from Pl@ntNet." };
   }
 
+  const bestResult = payload.results?.[0];
+  const indications = {
+    commonName: ranked[0].allCommons || bestResult?.species?.commonNames?.[0]?.trim(),
+    scientificName: bestResult?.species?.scientificNameWithoutAuthor?.trim(),
+    family: bestResult?.species?.family?.scientificNameWithoutAuthor?.trim(),
+    genus: bestResult?.species?.genus?.scientificNameWithoutAuthor?.trim(),
+  };
+
   return {
     ok: true,
     result: {
       name: ranked[0].name,
       confidence: ranked[0].confidence,
       source: "plantnet",
-      indications: {
-        commonName: payload.results?.[0]?.species?.commonNames?.[0]?.trim(),
-        scientificName: payload.results?.[0]?.species?.scientificNameWithoutAuthor?.trim(),
-        family: payload.results?.[0]?.species?.family?.scientificNameWithoutAuthor?.trim(),
-        genus: payload.results?.[0]?.species?.genus?.scientificNameWithoutAuthor?.trim(),
-      },
+      indications,
       alternatives: ranked.filter((item) => item.confidence >= MIN_ALTERNATIVE_CONFIDENCE).slice(1, 5),
     },
   };

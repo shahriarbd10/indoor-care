@@ -192,7 +192,7 @@ export default function PlantScanner() {
       setViewMode("results");
       setState("idle");
       setScanHeadline("Detection complete");
-      setStatusMessage("Best match found. Select a card for full details.");
+      setStatusMessage("Match found! Select a card to view detailed metadata.");
 
       stopSmartScan();
       releaseCamera();
@@ -211,26 +211,15 @@ export default function PlantScanner() {
     scanSessionTokenRef.current += 1;
     const sessionToken = scanSessionTokenRef.current;
 
-    setState("countdown");
-    setScanHeadline("Ready to scan");
-    setStatusMessage("Positioning leaf in the frame...");
-    
-    for (let i = 3; i > 0; i--) {
-      if (!scanLoopActiveRef.current || sessionToken !== scanSessionTokenRef.current) return;
-      setCountDown(i);
-      await sleep(1000);
-    }
-    setCountDown(null);
-    if (!scanLoopActiveRef.current || sessionToken !== scanSessionTokenRef.current) return;
-
+    // Phase 1: Search Loop (Immediate Analyzing)
     setState("scanning");
-    setScanHeadline("Analyzing plant");
-    setStatusMessage("Hold still...");
+    setScanHeadline("Searching...");
+    setStatusMessage("Hold steady while we identify the leaf...");
 
-    const scanStart = Date.now();
     let bestDoc: Prediction | null = null;
     let bestImg: string | null = null;
     let maxConf = 0;
+    const searchStart = Date.now();
 
     while (scanLoopActiveRef.current && sessionToken === scanSessionTokenRef.current) {
       const frameFile = captureFrameFromVideo();
@@ -242,17 +231,49 @@ export default function PlantScanner() {
       const { prediction } = await identifyFromImage(frameFile);
       if (!scanLoopActiveRef.current || sessionToken !== scanSessionTokenRef.current) return;
 
-      if (prediction && prediction.confidence > maxConf) {
+      if (prediction && prediction.confidence > 0.35) {
         bestDoc = prediction;
         bestImg = frameFile;
         maxConf = prediction.confidence;
+        break; // Match found, exit Phase 1
       }
 
-      if (Date.now() - scanStart > 1200 || maxConf >= 0.8) break;
-      await sleep(150);
+      if (Date.now() - searchStart > 10000) {
+        stopSmartScan();
+        setState("error");
+        setScanHeadline("No match");
+        setStatusMessage("Could not identify leaf. Try centering it better and scan again.");
+        return;
+      }
+      await sleep(200);
     }
 
     if (!scanLoopActiveRef.current || sessionToken !== scanSessionTokenRef.current) return;
+
+    // Phase 2: Final Countdown (Hold Steady)
+    setState("countdown");
+    setScanHeadline("Matching found!");
+    setStatusMessage("Hold still for final optimization...");
+
+    for (let i = 3; i > 0; i--) {
+      if (!scanLoopActiveRef.current || sessionToken !== scanSessionTokenRef.current) return;
+      setCountDown(i);
+      
+      // Optional: Refine during countdown
+      if (i > 1) {
+        const frame = captureFrameFromVideo();
+        if (frame) {
+          const { prediction } = await identifyFromImage(frame);
+          if (prediction && prediction.confidence > maxConf) {
+            bestDoc = prediction;
+            bestImg = frame;
+            maxConf = prediction.confidence;
+          }
+        }
+      }
+      await sleep(1000);
+    }
+    setCountDown(null);
 
     if (bestDoc && bestImg) {
       await openResultFromPrediction(bestImg, bestDoc);
@@ -260,7 +281,7 @@ export default function PlantScanner() {
       stopSmartScan();
       setState("error");
       setScanHeadline("No detection");
-      setStatusMessage("Could not identify the leaf. Try to center it better and scan again.");
+      setStatusMessage("Lost the match during countdown. Please try again.");
     }
   }, [cameraOpen, captureFrameFromVideo, identifyFromImage, openResultFromPrediction, stopSmartScan]);
 
@@ -407,7 +428,7 @@ export default function PlantScanner() {
               <span className={styles.bracketTopRight} />
               <span className={styles.bracketBottomLeft} />
               <span className={styles.bracketBottomRight} />
-              {(state === "scanning" || countDown !== null) && <div className={styles.scanLine} />}
+              {(state === "scanning" || state === "countdown") && <div className={styles.scanLine} />}
             </div>
 
             <div className={styles.bottomControls}>
@@ -442,7 +463,7 @@ export default function PlantScanner() {
           <div className={styles.resultsLayer}>
             <div className={styles.resultsHeader}>
               <p className={styles.resultsKicker}>Identification Success</p>
-              <p className={styles.resultsCaption}>Showing likely plant types.</p>
+              <p className={styles.resultsCaption}>Showing likely plant types from {results[0]?.source.toUpperCase()}.</p>
             </div>
             <div className={styles.resultList}>
               {results.slice(0, 5).map((item, index) => (
@@ -470,17 +491,60 @@ export default function PlantScanner() {
 
         {viewMode === "details" && selectedItem && (
           <div className={styles.detailsLayer}>
-            <h3>{selectedItem.name}</h3>
-            <div className={styles.detailMetaRow}>
-              <p className={styles.detailSub}>{Math.round(selectedItem.confidence * 100)}% confidence</p>
-              <span className={`${styles.badge} ${styles[`badge${resolveConfidenceTone(selectedItem.confidence)}`]}`}>
-                {resolveConfidenceLevel(selectedItem.confidence)}
-              </span>
+            <div className={styles.detailsCard}>
+              <h3 className={styles.detailsTitle}>{selectedItem.name}</h3>
+              
+              <div className={styles.detailMetaRow}>
+                <span className={`${styles.badge} ${styles[`badge${resolveConfidenceTone(selectedItem.confidence)}`]}`}>
+                  {Math.round(selectedItem.confidence * 100)}% {resolveConfidenceLevel(selectedItem.confidence)} Confidence
+                </span>
+                <span className={styles.sourcePill}>{selectedItem.source.toUpperCase()} Metadata</span>
+              </div>
+
+              {selectedItem.indications && (
+                <div className={styles.indicationsSection}>
+                  <p className={styles.sectionLabel}>Available Metadata</p>
+                  <ul className={styles.indicationList}>
+                    {selectedItem.indications.commonName && (
+                      <li>
+                        <span className={styles.indLabel}>Common Names</span>
+                        <strong className={styles.indValue}>{selectedItem.indications.commonName}</strong>
+                      </li>
+                    )}
+                    {selectedItem.indications.scientificName && (
+                      <li>
+                        <span className={styles.indLabel}>Scientific Name</span>
+                        <strong className={styles.indValue}>{selectedItem.indications.scientificName}</strong>
+                      </li>
+                    )}
+                    {selectedItem.indications.family && (
+                      <li>
+                        <span className={styles.indLabel}>Plant Family</span>
+                        <strong className={styles.indValue}>{selectedItem.indications.family}</strong>
+                      </li>
+                    )}
+                    {selectedItem.indications.genus && (
+                      <li>
+                        <span className={styles.indLabel}>Genus</span>
+                        <strong className={styles.indValue}>{selectedItem.indications.genus}</strong>
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+
+              <div className={styles.descriptionSection}>
+                <p className={styles.sectionLabel}>About this Plant</p>
+                <p className={styles.detailText}>
+                  {selectedItem.description || "Detailed ecological information provided by the identification API metadata."}
+                </p>
+              </div>
             </div>
-            <p className={styles.detailText}>
-              {selectedItem.description || "Expert identification provided for your plant leaf."}
-            </p>
-            <button type="button" className={styles.primaryBtn} onClick={nextDetection}>Scan Next Plant</button>
+
+            <div className={styles.detailsActions}>
+               <button type="button" className={styles.primaryBtn} onClick={nextDetection}>Scan Next Plant</button>
+               <button type="button" className={styles.secondaryBtn} onClick={() => setViewMode("results")}>Back to List</button>
+            </div>
           </div>
         )}
       </div>

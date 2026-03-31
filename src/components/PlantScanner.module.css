@@ -159,7 +159,7 @@
 
 .externalInfoCard {
   width: min(90%, 400px);
-  margin: -3rem auto 3rem;
+  margin: 1rem auto;
   background: #1f2e26;
   border-radius: 20px;
   border: 1px solid rgba(74, 222, 128, 0.2);

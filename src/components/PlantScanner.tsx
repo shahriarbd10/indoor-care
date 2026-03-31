@@ -26,13 +26,13 @@ type ResultItem = {
 };
 
 type ViewMode = "capture" | "results" | "details";
-type DetectState = "idle" | "scanning" | "processing" | "error";
+type DetectState = "idle" | "countdown" | "scanning" | "processing" | "error";
 
 const CAPTURE_WIDTH = 720;
 const CAPTURE_HEIGHT = 960;
 const MODERATE_CONFIDENCE_THRESHOLD = 0.4;
 const MIN_DETECTED_CONFIDENCE = 0.15;
-const MIN_ALTERNATIVE_CONFIDENCE = 0.2;
+const MIN_ALTERNATIVE_CONFIDENCE = 0.02;
 const SCAN_PHASE_DURATION_MS = 2000;
 const QUALITY_BOOST_DURATION_MS = 2000;
 const RECHECK_DELAY_MS = 650;
@@ -94,6 +94,7 @@ export default function PlantScanner() {
   const [results, setResults] = useState<ResultItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [showCloseMatches, setShowCloseMatches] = useState(false);
+  const [countDown, setCountDown] = useState<number | null>(null);
 
   const selectedItem = useMemo(() => results[selectedIndex] ?? null, [results, selectedIndex]);
   const closeMatches = useMemo(() => results.slice(1), [results]);
@@ -225,6 +226,18 @@ export default function PlantScanner() {
     scanLoopActiveRef.current = true;
     scanSessionTokenRef.current += 1;
     const sessionToken = scanSessionTokenRef.current;
+
+    // 3-second countdown phase
+    setState("countdown");
+    setScanHeadline("Get ready");
+    setStatusMessage("Position the camera over a plant leaf...");
+    for (let i = 3; i > 0; i--) {
+      if (!scanLoopActiveRef.current || sessionToken !== scanSessionTokenRef.current) return;
+      setCountDown(i);
+      await sleep(1000);
+    }
+    setCountDown(null);
+    if (!scanLoopActiveRef.current || sessionToken !== scanSessionTokenRef.current) return;
 
     const scanStart = Date.now();
     let attempts = 0;
@@ -372,6 +385,7 @@ export default function PlantScanner() {
     setBackgroundImage(null);
     setCapturedFrame(null);
     setSavedImageUrl(null);
+    setCountDown(null);
     setState("idle");
     setScanHeadline("Smart scan ready");
     setStatusMessage("Frame one leaf clearly for the best result.");
@@ -503,6 +517,11 @@ export default function PlantScanner() {
         {viewMode === "capture" ? (
           <>
             <div className={styles.guideFrame}>
+              {countDown !== null ? (
+                <div className={styles.countdownOverlay}>
+                  <span className={styles.countdownNumber}>{countDown}</span>
+                </div>
+              ) : null}
               <span className={styles.guideLabel}>Keep leaf centered</span>
             </div>
             <div className={styles.captureLayer}>
@@ -511,19 +530,25 @@ export default function PlantScanner() {
                 <p className={styles.captureHint}>{statusMessage}</p>
                 <p className={styles.captureSupport}>Tip: keep the leaf centered and avoid shadows for higher confidence.</p>
               </div>
-              {capturedFrame ? <p className={styles.captureAuto}>Captured frame ready for scan.</p> : <p className={styles.captureAuto}>Ready when you are.</p>}
+              <p className={styles.captureAuto}>
+                {state === "countdown" || state === "scanning" 
+                  ? "Auto-scan activated." 
+                  : "Ready when you are."}
+              </p>
               <div className={styles.captureActions}>
-                <button type="button" className={styles.secondaryBtn} onClick={captureForScan} disabled={isStartingCamera || state === "scanning"}>
-                  Capture
-                </button>
-                <button
-                  type="button"
-                  className={styles.primaryBtn}
-                  onClick={() => void startSmartScan()}
-                  disabled={isStartingCamera || state === "scanning"}
-                >
-                  {state === "scanning" ? "Scanning..." : "Scan"}
-                </button>
+                {state === "countdown" || state === "scanning" ? (
+                  <button type="button" className={styles.secondaryBtn} onClick={closeScanner}>
+                    Cancel Scan
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.primaryBtn}
+                    onClick={() => void startSmartScan()}
+                  >
+                    Start Plant Scan
+                  </button>
+                )}
               </div>
             </div>
           </>

@@ -16,6 +16,12 @@ const CAPTURE_WIDTH = 640;
 const CAPTURE_HEIGHT = 480;
 const LOW_CONFIDENCE_THRESHOLD = 0.45;
 
+function resolveConfidenceLevel(confidence: number): "Low" | "Medium" | "High" {
+  if (confidence < 0.45) return "Low";
+  if (confidence < 0.75) return "Medium";
+  return "High";
+}
+
 function parseApiError(payload: unknown): string {
   if (!payload || typeof payload !== "object") {
     return "We could not identify the plant this time. Try again with better lighting.";
@@ -52,6 +58,7 @@ export default function PlantScanner() {
   const [state, setState] = useState<DetectState>("idle");
   const [statusMessage, setStatusMessage] = useState("Tap detect to open camera.");
   const [prediction, setPrediction] = useState<Prediction | null>(null);
+  const [savedImageUrl, setSavedImageUrl] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>("--");
 
@@ -62,10 +69,15 @@ export default function PlantScanner() {
 
   const confidenceLevel = useMemo(() => {
     if (!prediction) return null;
-    if (prediction.confidence < 0.45) return "Low";
-    if (prediction.confidence < 0.75) return "Medium";
-    return "High";
+    return resolveConfidenceLevel(prediction.confidence);
   }, [prediction]);
+
+  const statePillLabel = useMemo(() => {
+    if (state === "processing") return "Processing";
+    if (state === "error") return "Attention";
+    if (frozenFrame && prediction) return "Captured";
+    return "Live";
+  }, [state, frozenFrame, prediction]);
 
   const releaseCamera = useCallback(() => {
     if (streamRef.current) {
@@ -113,6 +125,7 @@ export default function PlantScanner() {
 
       const parsed = payload as Prediction;
       setPrediction(parsed);
+      setSavedImageUrl(null);
       setLastUpdated(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
       setState("scanning");
       setStatusMessage(
@@ -124,6 +137,29 @@ export default function PlantScanner() {
       if (parsed.confidence >= LOW_CONFIDENCE_THRESHOLD) {
         setFrozenFrame(imageBase64);
         releaseCamera();
+
+        // Save only successful scans for efficient storage usage.
+        try {
+          const saveResponse = await fetch("/api/scans", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              imageBase64,
+              createdAtClient: new Date().toISOString(),
+              confidenceLevel: resolveConfidenceLevel(parsed.confidence),
+              prediction: parsed,
+            }),
+          });
+
+          if (saveResponse.ok) {
+            const saved = (await saveResponse.json()) as { imageUrl?: string };
+            if (saved.imageUrl) {
+              setSavedImageUrl(saved.imageUrl);
+            }
+          }
+        } catch {
+          // Keep capture flow smooth even if save fails.
+        }
       }
     } catch (error) {
       const message =
@@ -220,6 +256,7 @@ export default function PlantScanner() {
   const handleNextDetection = useCallback(() => {
     setPrediction(null);
     setFrozenFrame(null);
+    setSavedImageUrl(null);
     setState("idle");
     setStatusMessage("Opening camera...");
     void openCamera();
@@ -273,7 +310,7 @@ export default function PlantScanner() {
 
   return (
     <section className="scanner-shell">
-      <div className="scanner-video-wrap">
+      <div className={`scanner-video-wrap ${frozenFrame ? "is-frozen" : ""}`}>
         <button className="scanner-close-button" onClick={closeCamera} type="button" aria-label="Close camera">
           <svg viewBox="0 0 24 24" focusable="false" aria-hidden>
             <path d="M6.7 5.3 12 10.6l5.3-5.3a1 1 0 1 1 1.4 1.4L13.4 12l5.3 5.3a1 1 0 0 1-1.4 1.4L12 13.4l-5.3 5.3a1 1 0 0 1-1.4-1.4l5.3-5.3-5.3-5.3a1 1 0 1 1 1.4-1.4Z" />
@@ -309,9 +346,10 @@ export default function PlantScanner() {
                 <p className="scanner-brand-title">Indoor Care</p>
               </div>
             </div>
-            <p className={`scanner-state-pill scanner-state-${state}`}>
-              {state === "processing" ? "Processing" : state === "error" ? "Attention" : "Live"}
-            </p>
+            <div className="scanner-badge-group">
+              {prediction ? <p className="scanner-plant-pill">{prediction.name}</p> : null}
+              <p className={`scanner-state-pill scanner-state-${state}`}>{statePillLabel}</p>
+            </div>
           </div>
 
           <h1 className="scanner-title">Botanical Lens</h1>
@@ -378,28 +416,47 @@ export default function PlantScanner() {
               type="button"
               disabled={state === "processing" || isStartingCamera}
             >
-              {frozenFrame ? "Next Detection" : prediction ? "Detect Another" : "Detect Plant"}
+              {frozenFrame ? "Next Detection" : "Detect Plant"}
             </button>
             <button
               className="scanner-ghost-button"
               onClick={() => {
                 if (frozenFrame) {
-                  handleNextDetection();
+                  guideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                   return;
                 }
 
                 setPrediction(null);
                 setFrozenFrame(null);
+                setSavedImageUrl(null);
                 setStatusMessage("Ready for next plant. Frame it and tap Detect Plant.");
                 guideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
               type="button"
             >
-              {frozenFrame ? "Next Detection" : "Next Plant"}
+              {frozenFrame ? "View Tips" : "Next Plant"}
             </button>
           </div>
         </div>
       </div>
+
+      <section className="scanner-info-card" aria-label="Plant summary">
+        <p className="scanner-info-title">Plant Description</p>
+        {prediction?.description ? (
+          <p className="scanner-info-text">{prediction.description}</p>
+        ) : prediction ? (
+          <p className="scanner-info-text">
+            No description available yet for this plant. You can scan another angle for more details.
+          </p>
+        ) : (
+          <p className="scanner-info-text">
+            Scan a plant to see a short description and context before reviewing session insights.
+          </p>
+        )}
+        {savedImageUrl ? (
+          <p className="scanner-save-note">Saved to your collection successfully.</p>
+        ) : null}
+      </section>
 
       <div ref={guideRef} className="scanner-guide">
         <div className="scanner-panel-head">
@@ -432,6 +489,7 @@ export default function PlantScanner() {
           className="scanner-refresh-button"
           onClick={() => {
             setPrediction(null);
+            setSavedImageUrl(null);
             setStatusMessage("Ready for next plant. Frame it and tap Detect Plant.");
           }}
           type="button"

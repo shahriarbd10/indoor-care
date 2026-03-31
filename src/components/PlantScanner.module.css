@@ -1,0 +1,236 @@
+.wrapper {
+  width: min(430px, 100%);
+  margin: 0 auto;
+  padding-bottom: 6.2rem;
+}
+
+.phoneCard {
+  position: relative;
+  min-height: 76dvh;
+  border-radius: 28px;
+  overflow: hidden;
+  background:
+    linear-gradient(160deg, rgba(26, 40, 44, 0.9), rgba(20, 30, 30, 0.94)),
+    radial-gradient(circle at 20% 10%, rgba(135, 211, 146, 0.22), transparent 35%);
+  border: 1px solid rgba(194, 230, 194, 0.2);
+  box-shadow: 0 26px 58px rgba(10, 26, 23, 0.28);
+  background-size: cover;
+  background-position: center;
+}
+
+.video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hiddenCanvas,
+.hiddenInput {
+  display: none;
+}
+
+.iconButtonLeft,
+.iconButtonRight {
+  position: absolute;
+  top: 1rem;
+  z-index: 5;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(229, 248, 227, 0.24);
+  border-radius: 999px;
+  background: rgba(20, 32, 31, 0.55);
+  color: #e7f9e2;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.iconButtonLeft {
+  left: 1rem;
+}
+
+.iconButtonRight {
+  right: 1rem;
+}
+
+.captureLayer,
+.resultsLayer,
+.detailsLayer {
+  position: relative;
+  z-index: 4;
+  padding: 4rem 1rem 1.1rem;
+  color: #f0f9ed;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.captureLayer h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.captureLayer p,
+.resultsIntro {
+  margin: 0;
+  color: rgba(233, 247, 230, 0.92);
+}
+
+.captureActions {
+  margin-top: auto;
+  display: flex;
+  gap: 0.55rem;
+}
+
+.primaryBtn,
+.secondaryBtn {
+  min-height: 2.6rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.55rem 1rem;
+  font-weight: 640;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.primaryBtn {
+  background: linear-gradient(130deg, #caff9f, #8ee47f 78%);
+  color: #173d2d;
+}
+
+.secondaryBtn {
+  background: rgba(240, 252, 242, 0.14);
+  border-color: rgba(230, 250, 230, 0.35);
+  color: #edf9e9;
+}
+
+.resultList {
+  display: grid;
+  gap: 0.52rem;
+  max-height: 48dvh;
+  overflow: auto;
+  padding-right: 0.15rem;
+}
+
+.resultCard {
+  width: 100%;
+  border: 1px solid rgba(223, 253, 219, 0.23);
+  border-radius: 16px;
+  background: rgba(45, 81, 57, 0.55);
+  color: #ecf9e8;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 0.62rem;
+  padding: 0.45rem;
+  cursor: pointer;
+}
+
+.resultThumb {
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 10px;
+  background: radial-gradient(circle at 40% 30%, #b7f39f 0%, #4f9861 80%);
+}
+
+.resultInfo {
+  display: grid;
+  gap: 0.14rem;
+}
+
+.resultName {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 650;
+}
+
+.resultMeta {
+  margin: 0;
+  color: rgba(228, 247, 223, 0.88);
+  font-size: 0.83rem;
+}
+
+.detailsLayer h3 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.detailSub,
+.detailMeta {
+  margin: 0;
+  color: rgba(226, 245, 219, 0.9);
+}
+
+.detailText {
+  margin: 0;
+  color: rgba(235, 248, 231, 0.94);
+  line-height: 1.45;
+}
+
+.savedTag {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 620;
+  color: #c5ffb9;
+}
+
+.homeShell {
+  width: min(430px, 100%);
+  margin: 0 auto;
+  min-height: 68dvh;
+  display: grid;
+  place-items: center;
+  padding-bottom: 6rem;
+}
+
+.homeCard {
+  width: 100%;
+  border-radius: 22px;
+  border: 1px solid rgba(34, 74, 46, 0.13);
+  background: rgba(247, 255, 245, 0.8);
+  box-shadow: 0 18px 35px rgba(22, 59, 38, 0.16);
+  padding: 1rem;
+}
+
+.homeCard h1 {
+  margin: 0;
+  color: #18402e;
+}
+
+.homeCard p {
+  margin: 0.45rem 0 0;
+  color: #2f5a45;
+}
+
+.homeActions {
+  margin-top: 0.9rem;
+  display: flex;
+  gap: 0.55rem;
+}
+
+.warning {
+  color: #8f291d !important;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .wrapper,
+  .homeShell {
+    width: min(96vw, 430px);
+  }
+
+  .phoneCard {
+    min-height: 74dvh;
+  }
+
+  .captureActions,
+  .homeActions {
+    flex-wrap: wrap;
+  }
+
+  .primaryBtn,
+  .secondaryBtn {
+    flex: 1 1 47%;
+  }
+}

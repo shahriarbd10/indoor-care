@@ -443,7 +443,7 @@ export default function PlantScanner() {
 
         setState("idle");
         setScanHeadline("Smart scan ready");
-        setStatusMessage("Capture a frame or tap Scan to start the 2+2 second scan.");
+        setStatusMessage("Place the plant leaf inside the frame, hold still, and tap Start Plant Scan.");
       } catch {
         if (cancelled) return;
         if (localStream) {
@@ -517,38 +517,60 @@ export default function PlantScanner() {
         {viewMode === "capture" ? (
           <>
             <div className={styles.guideFrame}>
-              {countDown !== null ? (
-                <div className={styles.countdownOverlay}>
-                  <span className={styles.countdownNumber}>{countDown}</span>
-                </div>
-              ) : null}
-              <span className={styles.guideLabel}>Keep leaf centered</span>
+              <span className={styles.bracketTopLeft} />
+              <span className={styles.bracketTopRight} />
+              <span className={styles.bracketBottomLeft} />
+              <span className={styles.bracketBottomRight} />
+              {(state === "scanning" || countDown !== null) && <div className={styles.scanLine} />}
             </div>
-            <div className={styles.captureLayer}>
-              <div className={styles.statusCard}>
-                <p className={styles.scanHeadline}>{scanHeadline}</p>
-                <p className={styles.captureHint}>{statusMessage}</p>
-                <p className={styles.captureSupport}>Tip: keep the leaf centered and avoid shadows for higher confidence.</p>
+
+            {countDown !== null ? (
+              <div className={styles.cornerCountdownOverlay}>
+                <span className={styles.cornerCountdownNumber}>{countDown}</span>
               </div>
-              <p className={styles.captureAuto}>
-                {state === "countdown" || state === "scanning" 
-                  ? "Auto-scan activated." 
-                  : "Ready when you are."}
-              </p>
-              <div className={styles.captureActions}>
-                {state === "countdown" || state === "scanning" ? (
-                  <button type="button" className={styles.secondaryBtn} onClick={closeScanner}>
-                    Cancel Scan
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className={styles.primaryBtn}
-                    onClick={() => void startSmartScan()}
-                  >
-                    Start Plant Scan
-                  </button>
-                )}
+            ) : null}
+
+            <div className={styles.captureBottomOverlay}>
+              <div className={styles.floatingResultCard}>
+                <div className={styles.floatingThumb}>
+                  <svg viewBox="0 0 24 24"><path d="M12 2L9 8h6l-3-6zM5 10c0 4.5 3 8 7 8s7-3.5 7-8-3-8-7-8-7 3.5-7 8z" opacity="0.3"/><path d="M12 21c-4.5 0-8-3.5-8-8s3.5-8 8-8 8 3.5 8 8-3.5 8-8 8zM12 7v4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="12" cy="15" r="1.5"/></svg>
+                </div>
+                <div className={styles.floatingInfo}>
+                  <h3 className={styles.floatingTitle}>{scanHeadline}</h3>
+                  <p className={styles.floatingDesc}>{statusMessage}</p>
+                </div>
+                <div className={styles.floatingArrow}>
+                  <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </div>
+              </div>
+
+              <div className={styles.segmentedControl}>
+                <button type="button" className={`${styles.segmentedBtn} ${styles.active}`}>Identify</button>
+                <button type="button" className={styles.segmentedBtn}>Multiple</button>
+              </div>
+
+              <div className={styles.bottomNav}>
+                <button type="button" className={styles.iconBtn}>
+                  <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm0 2v12h16V6H4zm8 3c1.65 0 3 1.35 3 3s-1.35 3-3 3-3-1.35-3-3 1.35-3 3-3zm0 2c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1zm-6 6l3.5-4.5L11 14l2.5-3.5L17 17H6z"/></svg>
+                  <span>Gallery</span>
+                </button>
+                
+                <button
+                  type="button"
+                  className={styles.mainScanBtn}
+                  onClick={state === "countdown" || state === "scanning" ? closeScanner : () => void startSmartScan()}
+                >
+                  {state === "countdown" || state === "scanning" ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24"><path d="M3 9V5a2 2 0 0 1 2-2h4M21 9V5a2 2 0 0 0-2-2h-4M3 15v4a2 2 0 0 0 2 2h4M21 15v4a2 2 0 0 1-2 2h-4M7 12h10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M12 7v10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                  )}
+                </button>
+
+                <button type="button" className={styles.iconBtn}>
+                  <svg viewBox="0 0 24 24"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                  <span>Photo Tips</span>
+                </button>
               </div>
             </div>
           </>

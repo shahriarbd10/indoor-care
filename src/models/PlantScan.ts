@@ -8,6 +8,16 @@ const AlternativeSchema = new Schema(
   { _id: false }
 );
 
+const PlantIndicationsSchema = new Schema(
+  {
+    commonName: { type: String },
+    scientificName: { type: String },
+    family: { type: String },
+    genus: { type: String },
+  },
+  { _id: false }
+);
+
 const PlantScanSchema = new Schema(
   {
     plantName: { type: String, required: true },
@@ -15,6 +25,7 @@ const PlantScanSchema = new Schema(
     confidenceLevel: { type: String, enum: ["Low", "Medium", "High"], required: true },
     source: { type: String, enum: ["plantnet", "plantid"], required: true },
     description: { type: String },
+    indications: { type: PlantIndicationsSchema },
     alternatives: { type: [AlternativeSchema], default: [] },
     imageUrl: { type: String, required: true },
     imagePublicId: { type: String, required: true, unique: true, index: true },

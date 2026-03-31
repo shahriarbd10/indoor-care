@@ -5,6 +5,12 @@ type NormalizedResult = {
   confidence: number;
   source: "plantnet" | "plantid";
   description?: string;
+  indications?: {
+    commonName?: string;
+    scientificName?: string;
+    family?: string;
+    genus?: string;
+  };
   alternatives: Array<{ name: string; confidence: number }>;
 };
 
@@ -14,7 +20,8 @@ type ProviderResult = {
   error?: string;
 };
 
-const CONFIDENCE_THRESHOLD = Number(process.env.PLANT_CONFIDENCE_THRESHOLD ?? "0.45");
+const MODERATE_CONFIDENCE_THRESHOLD = Number(process.env.PLANT_CONFIDENCE_THRESHOLD ?? "0.4");
+const MIN_ALTERNATIVE_CONFIDENCE = 0.2;
 
 function decodeDataUrl(input: string): Buffer | null {
   const commaIndex = input.indexOf(",");
@@ -51,6 +58,12 @@ async function identifyWithPlantnet(imageBuffer: Buffer): Promise<ProviderResult
       species?: {
         scientificNameWithoutAuthor?: string;
         commonNames?: string[];
+        family?: {
+          scientificNameWithoutAuthor?: string;
+        };
+        genus?: {
+          scientificNameWithoutAuthor?: string;
+        };
       };
     }>;
     message?: string;
@@ -83,7 +96,13 @@ async function identifyWithPlantnet(imageBuffer: Buffer): Promise<ProviderResult
       name: ranked[0].name,
       confidence: ranked[0].confidence,
       source: "plantnet",
-      alternatives: ranked.slice(1, 4),
+      indications: {
+        commonName: payload.results?.[0]?.species?.commonNames?.[0]?.trim(),
+        scientificName: payload.results?.[0]?.species?.scientificNameWithoutAuthor?.trim(),
+        family: payload.results?.[0]?.species?.family?.scientificNameWithoutAuthor?.trim(),
+        genus: payload.results?.[0]?.species?.genus?.scientificNameWithoutAuthor?.trim(),
+      },
+      alternatives: ranked.filter((item) => item.confidence >= MIN_ALTERNATIVE_CONFIDENCE).slice(1, 5),
     },
   };
 }
@@ -145,7 +164,7 @@ async function identifyWithPlantId(imageDataUrl: string): Promise<ProviderResult
       confidence: ranked[0].confidence,
       source: "plantid",
       description: payload.suggestions?.[0]?.plant_details?.wiki_description?.value,
-      alternatives: ranked.slice(1, 4),
+      alternatives: ranked.filter((item) => item.confidence >= MIN_ALTERNATIVE_CONFIDENCE).slice(1, 5),
     },
   };
 }
@@ -165,7 +184,7 @@ export async function POST(request: NextRequest) {
     }
 
     const primary = await identifyWithPlantnet(imageBuffer);
-    if (primary.ok && primary.result && primary.result.confidence >= CONFIDENCE_THRESHOLD) {
+    if (primary.ok && primary.result && primary.result.confidence >= MODERATE_CONFIDENCE_THRESHOLD) {
       return NextResponse.json(primary.result, { status: 200 });
     }
 

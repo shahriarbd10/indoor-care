@@ -340,6 +340,35 @@
   line-height: 1.45;
 }
 
+.indicationList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.32rem;
+}
+
+.indicationList li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-radius: 10px;
+  padding: 0.34rem 0.5rem;
+  background: rgba(17, 31, 29, 0.42);
+  border: 1px solid rgba(226, 246, 219, 0.16);
+}
+
+.indicationList span {
+  font-size: 0.77rem;
+  color: rgba(220, 241, 211, 0.84);
+}
+
+.indicationList strong {
+  font-size: 0.77rem;
+  color: #ecf9e8;
+  font-weight: 600;
+}
+
 .savedTag {
   margin: 0;
   font-size: 0.82rem;

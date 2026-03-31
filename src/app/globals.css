@@ -681,6 +681,124 @@ body {
   color: #2f5540;
 }
 
+.library-state {
+  margin: 0;
+  border-radius: 14px;
+  padding: 0.78rem 0.9rem;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(29, 66, 46, 0.1);
+  color: #30513f;
+}
+
+.library-error {
+  color: #8f291d;
+  border-color: rgba(154, 57, 44, 0.2);
+}
+
+.library-grid {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.library-card {
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(29, 66, 46, 0.1);
+  box-shadow: 0 10px 24px rgba(35, 75, 52, 0.12);
+}
+
+.library-image {
+  width: 100%;
+  height: 190px;
+  object-fit: cover;
+  background: #d7e6d7;
+}
+
+.library-content {
+  padding: 0.82rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.library-kicker {
+  margin: 0;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #4a735b;
+}
+
+.library-content h2 {
+  margin: 0;
+  font-size: 1.02rem;
+  color: #173b2b;
+}
+
+.library-confidence {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #2f5742;
+}
+
+.library-indications {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.library-indications li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  border-radius: 10px;
+  padding: 0.28rem 0.42rem;
+  background: rgba(227, 244, 227, 0.7);
+}
+
+.library-indications span {
+  font-size: 0.76rem;
+  color: #355742;
+}
+
+.library-indications strong {
+  font-size: 0.76rem;
+  color: #1c4431;
+}
+
+.library-description {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.42;
+  color: #2c4e3b;
+}
+
+.library-alt p {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: #345842;
+}
+
+.library-alt ul {
+  margin: 0.28rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.24rem;
+}
+
+.library-alt li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+  color: #2b4f3a;
+}
+
 .bottom-nav {
   position: fixed;
   left: 50%;

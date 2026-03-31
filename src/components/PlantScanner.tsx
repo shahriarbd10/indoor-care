@@ -8,6 +8,12 @@ type Prediction = {
   confidence: number;
   source: "plantnet" | "plantid";
   description?: string;
+  indications?: {
+    commonName?: string;
+    scientificName?: string;
+    family?: string;
+    genus?: string;
+  };
   alternatives: Array<{ name: string; confidence: number }>;
 };
 
@@ -16,6 +22,7 @@ type ResultItem = {
   confidence: number;
   source: "plantnet" | "plantid";
   description?: string;
+  indications?: Prediction["indications"];
 };
 
 type ViewMode = "capture" | "results" | "details";
@@ -23,7 +30,14 @@ type DetectState = "idle" | "scanning" | "processing" | "error";
 
 const CAPTURE_WIDTH = 720;
 const CAPTURE_HEIGHT = 960;
-const LOW_CONFIDENCE_THRESHOLD = 0.45;
+const MODERATE_CONFIDENCE_THRESHOLD = 0.4;
+const MIN_ALTERNATIVE_CONFIDENCE = 0.2;
+const MIN_SCAN_DURATION_MS = 3500;
+const RECHECK_DELAY_MS = 1300;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function resolveConfidenceLevel(confidence: number): "Low" | "Medium" | "High" {
   if (confidence < 0.45) return "Low";
@@ -62,8 +76,8 @@ export default function PlantScanner() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const inflightRef = useRef(false);
-  const autoScanPendingRef = useRef(false);
+  const scanLoopActiveRef = useRef(false);
+  const scanSessionTokenRef = useRef(0);
 
   const [cameraOpen, setCameraOpen] = useState(false);
   const [isStartingCamera, setIsStartingCamera] = useState(false);
@@ -77,6 +91,11 @@ export default function PlantScanner() {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const selectedItem = useMemo(() => results[selectedIndex] ?? null, [results, selectedIndex]);
+
+  const stopSmartScan = useCallback(() => {
+    scanLoopActiveRef.current = false;
+    scanSessionTokenRef.current += 1;
+  }, []);
 
   const releaseCamera = useCallback(() => {
     if (streamRef.current) {
@@ -111,88 +130,140 @@ export default function PlantScanner() {
     }
   }, []);
 
-  const detectFromImage = useCallback(
-    async (imageBase64: string) => {
-      if (inflightRef.current) return;
-
-      inflightRef.current = true;
-      setState("processing");
-      setStatusMessage("Analyzing plant...");
-
-      try {
-        const response = await fetch("/api/plant-identify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64 }),
-        });
-
-        const payload = (await response.json()) as unknown;
-        if (!response.ok) {
-          throw new Error(parseApiError(payload));
-        }
-
-        const prediction = payload as Prediction;
-        const mapped: ResultItem[] = [
-          {
-            name: prediction.name,
-            confidence: prediction.confidence,
-            source: prediction.source,
-            description: prediction.description,
-          },
-          ...prediction.alternatives.map((item) => ({
-            name: item.name,
-            confidence: item.confidence,
-            source: prediction.source,
-            description: prediction.description,
-          })),
-        ];
-
-        setResults(mapped);
-        setSelectedIndex(0);
-        setBackgroundImage(imageBase64);
-        setSavedImageUrl(null);
-        setViewMode("results");
-        setState("scanning");
-        setStatusMessage(
-          prediction.confidence >= LOW_CONFIDENCE_THRESHOLD
-            ? "We identified possible matches. Tap a card for details."
-            : "Confidence is low. Move closer and scan again for better results."
-        );
-
-        releaseCamera();
-
-        if (prediction.confidence >= LOW_CONFIDENCE_THRESHOLD) {
-          void persistScan(imageBase64, prediction);
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to identify plant.";
-        setState("error");
-        setStatusMessage(message);
-      } finally {
-        inflightRef.current = false;
-      }
-    },
-    [persistScan, releaseCamera]
-  );
-
-  const detectFromVideo = useCallback(async () => {
+  const captureFrameFromVideo = useCallback(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || video.readyState < 2) return;
+    if (!video || !canvas || video.readyState < 2) return null;
 
     canvas.width = CAPTURE_WIDTH;
     canvas.height = CAPTURE_HEIGHT;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) return null;
 
     ctx.drawImage(video, 0, 0, CAPTURE_WIDTH, CAPTURE_HEIGHT);
-    const imageBase64 = canvas.toDataURL("image/jpeg", 0.78);
-    await detectFromImage(imageBase64);
-  }, [detectFromImage]);
+    return canvas.toDataURL("image/jpeg", 0.78);
+  }, []);
+
+  const identifyFromImage = useCallback(async (imageBase64: string): Promise<{ prediction?: Prediction; error?: string }> => {
+    try {
+      const response = await fetch("/api/plant-identify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64 }),
+      });
+
+      const payload = (await response.json()) as unknown;
+      if (!response.ok) {
+        return { error: parseApiError(payload) };
+      }
+
+      const prediction = payload as Prediction;
+      return {
+        prediction: {
+          ...prediction,
+          alternatives: (prediction.alternatives ?? [])
+            .filter((item) => item.confidence >= MIN_ALTERNATIVE_CONFIDENCE)
+            .sort((a, b) => b.confidence - a.confidence),
+        },
+      };
+    } catch {
+      return { error: "Plant detection is temporarily unavailable. We are still scanning." };
+    }
+  }, []);
+
+  const openResultFromPrediction = useCallback(
+    async (imageBase64: string, prediction: Prediction) => {
+      const mapped: ResultItem[] = [
+        {
+          name: prediction.name,
+          confidence: prediction.confidence,
+          source: prediction.source,
+          description: prediction.description,
+          indications: prediction.indications,
+        },
+        ...prediction.alternatives
+          .filter((item) => item.confidence >= MIN_ALTERNATIVE_CONFIDENCE)
+          .map((item) => ({
+            name: item.name,
+            confidence: item.confidence,
+            source: prediction.source,
+            description: prediction.description,
+            indications: prediction.indications,
+          })),
+      ];
+
+      setResults(mapped);
+      setSelectedIndex(0);
+      setBackgroundImage(imageBase64);
+      setSavedImageUrl(null);
+      setViewMode("results");
+      setState("idle");
+      setStatusMessage("Best match found with moderate confidence. Tap a card for full details.");
+
+      stopSmartScan();
+      releaseCamera();
+
+      if (prediction.confidence >= MODERATE_CONFIDENCE_THRESHOLD) {
+        void persistScan(imageBase64, prediction);
+      }
+    },
+    [persistScan, releaseCamera, stopSmartScan]
+  );
+
+  const startSmartScan = useCallback(async () => {
+    if (!cameraOpen || scanLoopActiveRef.current) return;
+
+    scanLoopActiveRef.current = true;
+    scanSessionTokenRef.current += 1;
+    const sessionToken = scanSessionTokenRef.current;
+
+    const scanStart = Date.now();
+    let attempts = 0;
+
+    setState("scanning");
+    setStatusMessage("Hold steady. Running a 3-5 second quality scan...");
+
+    while (scanLoopActiveRef.current && sessionToken === scanSessionTokenRef.current) {
+      const frame = captureFrameFromVideo();
+      if (!frame) {
+        await sleep(250);
+        continue;
+      }
+
+      attempts += 1;
+      const elapsed = Date.now() - scanStart;
+      if (elapsed < MIN_SCAN_DURATION_MS) {
+        setStatusMessage(`Analyzing frame ${attempts}. Keep leaf centered for a better scan...`);
+      } else {
+        setStatusMessage("Continuing scan for higher confidence. Move slightly closer if needed.");
+      }
+
+      const { prediction } = await identifyFromImage(frame);
+      if (!scanLoopActiveRef.current || sessionToken !== scanSessionTokenRef.current) {
+        return;
+      }
+
+      if (prediction && prediction.confidence >= MODERATE_CONFIDENCE_THRESHOLD && elapsed >= MIN_SCAN_DURATION_MS) {
+        await openResultFromPrediction(frame, prediction);
+        return;
+      }
+
+      if (prediction && prediction.confidence >= MODERATE_CONFIDENCE_THRESHOLD && elapsed < MIN_SCAN_DURATION_MS) {
+        setStatusMessage("Strong match found. Validating a few more frames for stability...");
+      }
+
+      if (prediction && prediction.confidence < MODERATE_CONFIDENCE_THRESHOLD) {
+        setStatusMessage("Still scanning... For better scan, move closer and keep the leaf in focus.");
+      }
+
+      await sleep(RECHECK_DELAY_MS);
+    }
+  }, [cameraOpen, captureFrameFromVideo, identifyFromImage, openResultFromPrediction]);
 
   const openCamera = useCallback(async () => {
     if (isStartingCamera) return;
 
+    stopSmartScan();
     setIsStartingCamera(true);
     setPermissionDenied(false);
     setViewMode("capture");
@@ -201,13 +272,12 @@ export default function PlantScanner() {
     setSelectedIndex(0);
     setSavedImageUrl(null);
     setStatusMessage("Opening camera...");
-    autoScanPendingRef.current = true;
     setCameraOpen(true);
-  }, [isStartingCamera]);
+  }, [isStartingCamera, stopSmartScan]);
 
   const closeScanner = useCallback(() => {
+    stopSmartScan();
     releaseCamera();
-    autoScanPendingRef.current = false;
     setCameraOpen(false);
     setIsStartingCamera(false);
     setViewMode("capture");
@@ -217,7 +287,7 @@ export default function PlantScanner() {
     setSavedImageUrl(null);
     setState("idle");
     setStatusMessage("Frame one leaf clearly for the best result.");
-  }, [releaseCamera]);
+  }, [releaseCamera, stopSmartScan]);
 
   const nextDetection = useCallback(() => {
     closeScanner();
@@ -257,12 +327,9 @@ export default function PlantScanner() {
         if (cancelled) return;
 
         setState("scanning");
-        setStatusMessage("Scanning your plant...");
+        setStatusMessage("Preparing smart scan...");
 
-        if (autoScanPendingRef.current) {
-          autoScanPendingRef.current = false;
-          await detectFromVideo();
-        }
+        await startSmartScan();
       } catch {
         if (cancelled) return;
         if (localStream) {
@@ -281,8 +348,9 @@ export default function PlantScanner() {
     void attach();
     return () => {
       cancelled = true;
+      stopSmartScan();
     };
-  }, [cameraOpen, detectFromVideo, isStartingCamera]);
+  }, [cameraOpen, isStartingCamera, startSmartScan, stopSmartScan]);
 
   useEffect(() => {
     return () => {
@@ -342,7 +410,7 @@ export default function PlantScanner() {
               <button
                 type="button"
                 className={styles.secondaryBtn}
-                onClick={() => void detectFromVideo()}
+                onClick={() => void startSmartScan()}
                 disabled={isStartingCamera}
               >
                 Scan Again
@@ -411,6 +479,14 @@ export default function PlantScanner() {
                 {resolveConfidenceLevel(selectedItem.confidence)}
               </span>
             </div>
+            {selectedItem.indications ? (
+              <ul className={styles.indicationList}>
+                {selectedItem.indications.commonName ? <li><span>Common name</span><strong>{selectedItem.indications.commonName}</strong></li> : null}
+                {selectedItem.indications.scientificName ? <li><span>Scientific name</span><strong>{selectedItem.indications.scientificName}</strong></li> : null}
+                {selectedItem.indications.family ? <li><span>Family</span><strong>{selectedItem.indications.family}</strong></li> : null}
+                {selectedItem.indications.genus ? <li><span>Genus</span><strong>{selectedItem.indications.genus}</strong></li> : null}
+              </ul>
+            ) : null}
             <p className={styles.detailText}>
               {selectedItem.description ?? "Detailed information is not available for this match yet."}
             </p>

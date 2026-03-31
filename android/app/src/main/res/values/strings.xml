@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Indoor Care</string>
+    <string name="title_activity_main">Indoor Care</string>
+    <string name="package_name">com.shAhriar.indoorcare</string>
+    <string name="custom_url_scheme">com.shAhriar.indoorcare</string>
+</resources>

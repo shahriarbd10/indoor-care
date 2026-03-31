@@ -96,13 +96,13 @@
   pointer-events: auto;
 }
 
-.guideFrameRelative {
+.guideFrame {
   position: absolute;
-  top: 15%;
+  top: 12%;
   left: 50%;
   transform: translateX(-50%);
   width: min(85%, 340px);
-  height: min(50vh, 420px);
+  height: min(58vh, 480px);
   pointer-events: none;
 }
 
@@ -158,16 +158,16 @@
 }
 
 .externalInfoCard {
-  width: min(90%, 400px);
-  margin: 1rem auto;
+  width: min(92%, 400px);
+  margin: 0.8rem auto 0;
   background: #1f2e26;
-  border-radius: 20px;
-  border: 1px solid rgba(74, 222, 128, 0.2);
-  padding: 1rem 1.25rem;
+  border-radius: 24px;
+  border: 1px solid rgba(74, 222, 128, 0.15);
+  padding: 1.1rem 1.4rem;
   display: flex;
   align-items: center;
-  gap: 1rem;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  gap: 1.1rem;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
   position: relative;
   z-index: 20;
 }
@@ -226,32 +226,25 @@
   fill: none;
 }
 
-.segmentedControl {
+.cornerCountdownOverlay {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  width: 44px;
+  height: 44px;
+  background: rgba(14, 25, 20, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 50%;
   display: flex;
-  background: rgba(10, 16, 13, 0.6);
-  border-radius: 999px;
-  padding: 0.35rem;
-  width: 100%;
-  max-width: 300px;
-  border: 1px solid rgba(255, 255, 255, 0.04);
-}
-.segmentedBtn {
-  flex: 1;
-  border-radius: 999px;
-  padding: 0.7rem 1rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.6);
-  text-align: center;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.segmentedBtn.active {
-  background: #4ade80;
-  color: #0c1811;
-  box-shadow: 0 4px 12px rgba(74, 222, 128, 0.2);
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #4ade80;
+  color: #4ade80;
+  font-weight: 700;
+  font-size: 1.2rem;
+  z-index: 20;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
 .bottomNav {

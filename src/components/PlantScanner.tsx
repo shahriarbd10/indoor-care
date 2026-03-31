@@ -531,19 +531,7 @@ export default function PlantScanner() {
               {(state === "scanning" || countDown !== null) && <div className={styles.scanLine} />}
             </div>
 
-            <div className={styles.bottomControls}>
-              <div className={styles.floatingResultCard}>
-                <div className={styles.floatingThumb}>
-                  <svg viewBox="0 0 24 24"><path d="M12 2L9 8h6l-3-6zM5 10c0 4.5 3 8 7 8s7-3.5 7-8-3-8-7-8-7 3.5-7 8z" opacity="0.3"/><path d="M12 21c-4.5 0-8-3.5-8-8s3.5-8 8-8 8 3.5 8 8-3.5 8-8 8zM12 7v4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="12" cy="15" r="1.5"/></svg>
-                </div>
-                <div className={styles.floatingInfo}>
-                  <h3 className={styles.floatingTitle}>{scanHeadline}</h3>
-                  <p className={styles.floatingDesc}>{statusMessage}</p>
-                </div>
-                <div className={styles.floatingArrow}>
-                  <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </div>
-              </div>
+          <div className={styles.bottomControls}>
 
               <div className={styles.segmentedControl}>
                 <button type="button" className={`${styles.segmentedBtn} ${styles.active}`}>Identify</button>
@@ -680,6 +668,21 @@ export default function PlantScanner() {
           </div>
         ) : null}
       </div>
+
+      {viewMode === "capture" ? (
+        <div className={styles.externalInfoCard}>
+          <div className={styles.floatingThumb}>
+            <svg viewBox="0 0 24 24"><path d="M12 2L9 8h6l-3-6zM5 10c0 4.5 3 8 7 8s7-3.5 7-8-3-8-7-8-7 3.5-7 8z" opacity="0.3"/><path d="M12 21c-4.5 0-8-3.5-8-8s3.5-8 8-8 8 3.5 8 8-3.5 8-8 8zM12 7v4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="12" cy="15" r="1.5"/></svg>
+          </div>
+          <div className={styles.floatingInfo}>
+            <h3 className={styles.floatingTitle}>{scanHeadline}</h3>
+            <p className={styles.floatingDesc}>{statusMessage}</p>
+          </div>
+          <div className={styles.floatingArrow}>
+            <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+      ) : null}
 
     </section>
   );

@@ -88,25 +88,28 @@
 .captureLayer {
   position: absolute;
   inset: 0;
-  padding: 5rem 1.25rem 2rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   z-index: 10;
+  pointer-events: none;
+}
+
+.captureLayer > * {
+  pointer-events: auto;
 }
 
 .guideFrameRelative {
-  position: relative;
-  width: 100%;
-  max-width: 340px;
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(85%, 340px);
   aspect-ratio: 1 / 1;
-  margin: auto 0 0;
   pointer-events: none;
 }
+
 .bracketTopLeft, .bracketTopRight, .bracketBottomLeft, .bracketBottomRight {
   position: absolute;
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-color: #fff;
   border-style: solid;
   border-width: 0;
@@ -127,6 +130,7 @@
   pointer-events: none;
   border-bottom: 2px dashed #4ade80;
 }
+
 @keyframes scanAnim {
   0% { transform: translateY(0%); opacity: 0; }
   10% { opacity: 1; }
@@ -135,13 +139,22 @@
 }
 
 .bottomControls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.25rem;
-  margin-top: -1.75rem; 
-  z-index: 10;
+  gap: 1.4rem;
+  padding: 1.5rem 1rem 2rem;
+  background: linear-gradient(to top, rgba(14, 25, 20, 1) 25%, rgba(14, 25, 20, 0.8) 65%, transparent 100%);
+  pointer-events: none;
+}
+
+.bottomControls > div {
+  pointer-events: auto;
 }
 
 .floatingResultCard {

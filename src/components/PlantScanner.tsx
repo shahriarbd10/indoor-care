@@ -55,7 +55,6 @@ function parseApiError(payload: unknown): string {
 export default function PlantScanner() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const inflightRef = useRef(false);
   const autoScanPendingRef = useRef(false);
@@ -238,31 +237,6 @@ export default function PlantScanner() {
     void openCamera();
   }, [closeScanner, openCamera]);
 
-  const handleUploadClick = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const handleFileChange = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const result = typeof reader.result === "string" ? reader.result : null;
-        if (!result) return;
-
-        setCameraOpen(true);
-        setViewMode("capture");
-        setStatusMessage("Analyzing uploaded image...");
-        await detectFromImage(result);
-      };
-      reader.readAsDataURL(file);
-      event.target.value = "";
-    },
-    [detectFromImage]
-  );
-
   useEffect(() => {
     if (!cameraOpen || !isStartingCamera) return;
     if (!streamRef.current || !videoRef.current) return;
@@ -320,19 +294,8 @@ export default function PlantScanner() {
             <button type="button" className={styles.primaryBtn} onClick={() => void openCamera()}>
               {isStartingCamera ? "Opening..." : "Detect Plant"}
             </button>
-            <button type="button" className={styles.secondaryBtn} onClick={handleUploadClick}>
-              Upload
-            </button>
           </div>
         </div>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className={styles.hiddenInput}
-          onChange={handleFileChange}
-        />
       </section>
     );
   }
@@ -353,8 +316,8 @@ export default function PlantScanner() {
         <button type="button" className={styles.iconButtonLeft} onClick={viewMode === "details" ? () => setViewMode("results") : closeScanner}>
           <span>‹</span>
         </button>
-        <button type="button" className={styles.iconButtonRight} onClick={viewMode === "details" ? () => setViewMode("results") : handleUploadClick}>
-          <span>{viewMode === "details" ? "↗" : "⤴"}</span>
+        <button type="button" className={styles.iconButtonRight} onClick={viewMode === "details" ? nextDetection : closeScanner}>
+          <span>{viewMode === "details" ? "↻" : "×"}</span>
         </button>
 
         {viewMode === "capture" ? (
@@ -365,8 +328,8 @@ export default function PlantScanner() {
               <button type="button" className={styles.primaryBtn} onClick={() => void detectFromVideo()} disabled={state === "processing"}>
                 {state === "processing" ? "Scanning..." : "Scan now"}
               </button>
-              <button type="button" className={styles.secondaryBtn} onClick={handleUploadClick}>
-                Upload
+              <button type="button" className={styles.secondaryBtn} onClick={closeScanner}>
+                Close
               </button>
             </div>
           </div>
@@ -401,8 +364,8 @@ export default function PlantScanner() {
               <button type="button" className={styles.primaryBtn} onClick={nextDetection}>
                 Next Detection
               </button>
-              <button type="button" className={styles.secondaryBtn} onClick={handleUploadClick}>
-                Upload
+              <button type="button" className={styles.secondaryBtn} onClick={closeScanner}>
+                Close
               </button>
             </div>
           </div>
@@ -424,13 +387,6 @@ export default function PlantScanner() {
         ) : null}
       </div>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className={styles.hiddenInput}
-        onChange={handleFileChange}
-      />
     </section>
   );
 }

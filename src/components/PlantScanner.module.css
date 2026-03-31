@@ -81,16 +81,17 @@
   margin-top: auto;
   display: flex;
   gap: 0.55rem;
+  align-items: center;
 }
 
 .primaryBtn,
 .secondaryBtn {
-  min-height: 2.6rem;
+  min-height: 2.5rem;
   border-radius: 999px;
   border: 1px solid transparent;
-  padding: 0.55rem 1rem;
-  font-weight: 640;
-  font-size: 0.95rem;
+  padding: 0.5rem 0.95rem;
+  font-weight: 620;
+  font-size: 0.9rem;
   cursor: pointer;
 }
 
@@ -103,6 +104,11 @@
   background: rgba(240, 252, 242, 0.14);
   border-color: rgba(230, 250, 230, 0.35);
   color: #edf9e9;
+}
+
+.secondaryBtn:hover,
+.primaryBtn:hover {
+  filter: brightness(1.05);
 }
 
 .resultList {
@@ -207,6 +213,7 @@
   margin-top: 0.9rem;
   display: flex;
   gap: 0.55rem;
+  justify-content: flex-start;
 }
 
 .warning {
@@ -226,11 +233,11 @@
 
   .captureActions,
   .homeActions {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .primaryBtn,
   .secondaryBtn {
-    flex: 1 1 47%;
+    flex: 1 1 50%;
   }
 }

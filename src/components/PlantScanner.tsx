@@ -31,9 +31,15 @@ function resolveConfidenceLevel(confidence: number): "Low" | "Medium" | "High" {
   return "High";
 }
 
+function resolveConfidenceTone(confidence: number): "low" | "medium" | "high" {
+  if (confidence < 0.45) return "low";
+  if (confidence < 0.75) return "medium";
+  return "high";
+}
+
 function parseApiError(payload: unknown): string {
   if (!payload || typeof payload !== "object") {
-    return "We could not identify this plant right now. Try again with better light.";
+    return "Plant detection is temporarily unavailable. Please try again in a moment.";
   }
 
   const maybeError = (payload as { error?: unknown }).error;
@@ -41,15 +47,15 @@ function parseApiError(payload: unknown): string {
     const normalized = maybeError.toLowerCase();
 
     if (normalized.includes("no confident") || normalized.includes("unknown")) {
-      return "Could not get a clear match. Move closer to one leaf and try again.";
+      return "We could not get a confident match. Move closer to a healthy leaf and scan again.";
     }
 
     if (normalized.includes("permission") || normalized.includes("camera")) {
-      return "Please allow camera access to continue.";
+      return "Camera access is required to scan plants. Please enable permission and retry.";
     }
   }
 
-  return "Plant check is temporarily unavailable. Please try again shortly.";
+  return "Plant detection is temporarily unavailable. Please try again shortly.";
 }
 
 export default function PlantScanner() {
@@ -62,7 +68,7 @@ export default function PlantScanner() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [isStartingCamera, setIsStartingCamera] = useState(false);
   const [state, setState] = useState<DetectState>("idle");
-  const [statusMessage, setStatusMessage] = useState("Focus camera on your plant.");
+  const [statusMessage, setStatusMessage] = useState("Frame one leaf clearly for the best result.");
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [savedImageUrl, setSavedImageUrl] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
@@ -210,7 +216,7 @@ export default function PlantScanner() {
     setBackgroundImage(null);
     setSavedImageUrl(null);
     setState("idle");
-    setStatusMessage("Focus camera on your plant.");
+    setStatusMessage("Frame one leaf clearly for the best result.");
   }, [releaseCamera]);
 
   const nextDetection = useCallback(() => {
@@ -251,7 +257,7 @@ export default function PlantScanner() {
         if (cancelled) return;
 
         setState("scanning");
-        setStatusMessage("Scanning plant...");
+        setStatusMessage("Scanning your plant...");
 
         if (autoScanPendingRef.current) {
           autoScanPendingRef.current = false;
@@ -289,7 +295,7 @@ export default function PlantScanner() {
       <section className={styles.homeShell}>
         <div className={styles.homeCard}>
           <h1>Let&apos;s find your plants</h1>
-          <p>Open camera and we will scan a frame automatically.</p>
+          <p>Open the camera to analyze a leaf and identify your plant in seconds.</p>
           {permissionDenied ? <p className={styles.warning}>Please allow camera permission to continue.</p> : null}
           <div className={styles.homeActions}>
             <button type="button" className={styles.primaryBtn} onClick={() => void openCamera()}>
@@ -314,6 +320,11 @@ export default function PlantScanner() {
         {!backgroundImage ? <video ref={videoRef} autoPlay muted playsInline className={styles.video} /> : null}
         <canvas ref={canvasRef} className={styles.hiddenCanvas} />
 
+        <div className={styles.scanHeader}>
+          <p className={styles.scanOverline}>Plant Scanner</p>
+          <p className={styles.scanTitle}>AI Leaf Identification</p>
+        </div>
+
         <button type="button" className={styles.iconButtonLeft} onClick={viewMode === "details" ? () => setViewMode("results") : closeScanner}>
           <span>‹</span>
         </button>
@@ -323,7 +334,10 @@ export default function PlantScanner() {
 
         {viewMode === "capture" ? (
           <div className={styles.captureLayer}>
-            <p className={styles.captureHint}>{statusMessage}</p>
+            <div className={styles.statusCard}>
+              <p className={styles.captureHint}>{statusMessage}</p>
+              <p className={styles.captureSupport}>Tip: keep the leaf centered and avoid shadows for higher confidence.</p>
+            </div>
             {state === "error" ? (
               <button
                 type="button"
@@ -331,18 +345,22 @@ export default function PlantScanner() {
                 onClick={() => void detectFromVideo()}
                 disabled={isStartingCamera}
               >
-                Try Again
+                Scan Again
               </button>
             ) : (
-              <p className={styles.captureAuto}>Auto scanning...</p>
+              <p className={styles.captureAuto}>Auto-scanning in progress...</p>
             )}
           </div>
         ) : null}
 
         {viewMode === "results" ? (
           <div className={styles.resultsLayer}>
+            <div className={styles.resultsHeader}>
+              <p className={styles.resultsKicker}>Detection Results</p>
+              <p className={styles.resultsCaption}>Ordered by strongest match confidence.</p>
+            </div>
             <p className={styles.resultsIntro}>
-              We identified <strong>{results.length}</strong> species here. Click each card for more details.
+              We found <strong>{results.length}</strong> possible matches. Select a card to view care details.
             </p>
             <div className={styles.resultList}>
               {results.map((item, index) => (
@@ -358,18 +376,27 @@ export default function PlantScanner() {
                   <div className={styles.resultThumb} />
                   <div className={styles.resultInfo}>
                     <p className={styles.resultName}>{item.name}</p>
-                    <p className={styles.resultMeta}>{Math.round(item.confidence * 100)}% match</p>
+                    <p className={styles.resultMeta}>
+                      {Math.round(item.confidence * 100)}% match
+                    </p>
+                    <div className={styles.resultMetaRow}>
+                      <span className={`${styles.badge} ${styles[`badge${resolveConfidenceTone(item.confidence)}`]}`}>
+                        {resolveConfidenceLevel(item.confidence)} confidence
+                      </span>
+                      <span className={styles.sourcePill}>{item.source.toUpperCase()}</span>
+                    </div>
                   </div>
+                  <span className={styles.rankTag}>#{index + 1}</span>
                 </button>
               ))}
             </div>
 
             <div className={styles.captureActions}>
               <button type="button" className={styles.primaryBtn} onClick={nextDetection}>
-                Next Detection
+                Scan Next Plant
               </button>
               <button type="button" className={styles.secondaryBtn} onClick={closeScanner}>
-                Close
+                Done
               </button>
             </div>
           </div>
@@ -378,14 +405,19 @@ export default function PlantScanner() {
         {viewMode === "details" && selectedItem ? (
           <div className={styles.detailsLayer}>
             <h3>{selectedItem.name}</h3>
-            <p className={styles.detailSub}>{Math.round(selectedItem.confidence * 100)}% • {resolveConfidenceLevel(selectedItem.confidence)} confidence</p>
+            <div className={styles.detailMetaRow}>
+              <p className={styles.detailSub}>{Math.round(selectedItem.confidence * 100)}% match confidence</p>
+              <span className={`${styles.badge} ${styles[`badge${resolveConfidenceTone(selectedItem.confidence)}`]}`}>
+                {resolveConfidenceLevel(selectedItem.confidence)}
+              </span>
+            </div>
             <p className={styles.detailText}>
-              {selectedItem.description ?? "Detailed description is not available for this result yet."}
+              {selectedItem.description ?? "Detailed information is not available for this match yet."}
             </p>
-            <p className={styles.detailMeta}>Source: {selectedItem.source.toUpperCase()}</p>
+            <p className={styles.detailMeta}>Data source: {selectedItem.source.toUpperCase()}</p>
             {savedImageUrl ? <p className={styles.savedTag}>Saved to collection</p> : null}
             <button type="button" className={styles.primaryBtn} onClick={nextDetection}>
-              Next Detection
+              Scan Next Plant
             </button>
           </div>
         ) : null}

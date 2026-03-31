@@ -62,7 +62,7 @@ export default function PlantScanner() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [isStartingCamera, setIsStartingCamera] = useState(false);
   const [state, setState] = useState<DetectState>("idle");
-  const [statusMessage, setStatusMessage] = useState("Focus camera on your plant and tap scan.");
+  const [statusMessage, setStatusMessage] = useState("Focus camera on your plant.");
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [savedImageUrl, setSavedImageUrl] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
@@ -229,7 +229,7 @@ export default function PlantScanner() {
     setBackgroundImage(null);
     setSavedImageUrl(null);
     setState("idle");
-    setStatusMessage("Focus camera on your plant and tap scan.");
+    setStatusMessage("Focus camera on your plant.");
   }, [releaseCamera]);
 
   const nextDetection = useCallback(() => {
@@ -254,7 +254,7 @@ export default function PlantScanner() {
         if (cancelled) return;
 
         setState("scanning");
-        setStatusMessage("Focus camera on your plant while we scan.");
+        setStatusMessage("Scanning plant...");
 
         if (autoScanPendingRef.current) {
           autoScanPendingRef.current = false;
@@ -288,7 +288,7 @@ export default function PlantScanner() {
       <section className={styles.homeShell}>
         <div className={styles.homeCard}>
           <h1>Let&apos;s find your plants</h1>
-          <p>Open camera and we will scan one frame automatically.</p>
+          <p>Open camera and we will scan a frame automatically.</p>
           {permissionDenied ? <p className={styles.warning}>Please allow camera permission to continue.</p> : null}
           <div className={styles.homeActions}>
             <button type="button" className={styles.primaryBtn} onClick={() => void openCamera()}>
@@ -322,16 +322,19 @@ export default function PlantScanner() {
 
         {viewMode === "capture" ? (
           <div className={styles.captureLayer}>
-            <h2>Let&apos;s find your plants!</h2>
-            <p>{statusMessage}</p>
-            <div className={styles.captureActions}>
-              <button type="button" className={styles.primaryBtn} onClick={() => void detectFromVideo()} disabled={state === "processing"}>
-                {state === "processing" ? "Scanning..." : "Scan now"}
+            <p className={styles.captureHint}>{statusMessage}</p>
+            {state === "error" ? (
+              <button
+                type="button"
+                className={styles.secondaryBtn}
+                onClick={() => void detectFromVideo()}
+                disabled={isStartingCamera}
+              >
+                Try Again
               </button>
-              <button type="button" className={styles.secondaryBtn} onClick={closeScanner}>
-                Close
-              </button>
-            </div>
+            ) : (
+              <p className={styles.captureAuto}>Auto scanning...</p>
+            )}
           </div>
         ) : null}
 

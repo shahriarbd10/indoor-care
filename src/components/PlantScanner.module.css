@@ -1,6 +1,7 @@
 .wrapper {
-  width: min(430px, 100%);
+  width: min(460px, 100%);
   margin: 0 auto;
+  padding-inline: 0.3rem;
   padding-bottom: 6.2rem;
 }
 
@@ -116,12 +117,14 @@
 
 .captureLayer {
   align-content: end;
+  min-height: 100%;
 }
 
 .guideFrame {
   position: absolute;
-  inset: 0;
-  margin: auto;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   width: min(72%, 290px);
   height: min(42vh, 300px);
   border-radius: 20px;
@@ -207,6 +210,7 @@
   display: flex;
   gap: 0.55rem;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .primaryBtn,
@@ -356,6 +360,41 @@
   background: rgba(19, 36, 30, 0.32);
 }
 
+.closeMatchesPanel {
+  border-radius: 14px;
+  background: rgba(14, 25, 22, 0.55);
+  border: 1px solid rgba(228, 248, 221, 0.2);
+  padding: 0.62rem;
+}
+
+.closeMatchesTitle {
+  margin: 0;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(220, 242, 213, 0.86);
+}
+
+.closeMatchesList {
+  margin: 0.45rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.32rem;
+}
+
+.closeMatchesList li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.65rem;
+  font-size: 0.84rem;
+  color: #eaf8e6;
+}
+
+.closeMatchesList strong {
+  color: #d9ffc9;
+}
+
 .detailsLayer h3 {
   margin: 0;
   font-size: 1.3rem;
@@ -426,12 +465,13 @@
 }
 
 .homeCard {
-  width: 100%;
+  width: min(430px, 100%);
+  margin: 0 auto;
   border-radius: 22px;
   border: 1px solid rgba(34, 74, 46, 0.13);
   background: rgba(247, 255, 245, 0.8);
   box-shadow: 0 18px 35px rgba(22, 59, 38, 0.16);
-  padding: 1rem;
+  padding: clamp(1rem, 4vw, 1.4rem);
 }
 
 .homeCard h1 {
@@ -448,7 +488,7 @@
   margin-top: 0.9rem;
   display: flex;
   gap: 0.55rem;
-  justify-content: flex-start;
+  justify-content: center;
 }
 
 .warning {
@@ -459,7 +499,7 @@
 @media (max-width: 640px) {
   .wrapper,
   .homeShell {
-    width: min(96vw, 430px);
+    width: min(96vw, 460px);
   }
 
   .phoneCard {
@@ -468,12 +508,12 @@
 
   .guideFrame {
     width: min(78%, 290px);
-    height: min(38vh, 280px);
+    height: min(40vh, 280px);
   }
 
   .captureActions,
   .homeActions {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
   }
 
   .primaryBtn,

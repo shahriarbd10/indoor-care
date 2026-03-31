@@ -35,7 +35,7 @@ const MIN_DETECTED_CONFIDENCE = 0.15;
 const MIN_ALTERNATIVE_CONFIDENCE = 0.2;
 const SCAN_PHASE_DURATION_MS = 2000;
 const QUALITY_BOOST_DURATION_MS = 2000;
-const RECHECK_DELAY_MS = 900;
+const RECHECK_DELAY_MS = 650;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -93,8 +93,10 @@ export default function PlantScanner() {
   const [viewMode, setViewMode] = useState<ViewMode>("capture");
   const [results, setResults] = useState<ResultItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [showCloseMatches, setShowCloseMatches] = useState(false);
 
   const selectedItem = useMemo(() => results[selectedIndex] ?? null, [results, selectedIndex]);
+  const closeMatches = useMemo(() => results.slice(1), [results]);
 
   const stopSmartScan = useCallback(() => {
     scanLoopActiveRef.current = false;
@@ -198,6 +200,7 @@ export default function PlantScanner() {
 
       setResults(mapped);
       setSelectedIndex(0);
+      setShowCloseMatches(false);
       setBackgroundImage(imageBase64);
       setCapturedFrame(imageBase64);
       setSavedImageUrl(null);
@@ -498,30 +501,32 @@ export default function PlantScanner() {
         </button>
 
         {viewMode === "capture" ? (
-          <div className={styles.captureLayer}>
+          <>
             <div className={styles.guideFrame}>
               <span className={styles.guideLabel}>Keep leaf centered</span>
             </div>
-            <div className={styles.statusCard}>
-              <p className={styles.scanHeadline}>{scanHeadline}</p>
-              <p className={styles.captureHint}>{statusMessage}</p>
-              <p className={styles.captureSupport}>Tip: keep the leaf centered and avoid shadows for higher confidence.</p>
+            <div className={styles.captureLayer}>
+              <div className={styles.statusCard}>
+                <p className={styles.scanHeadline}>{scanHeadline}</p>
+                <p className={styles.captureHint}>{statusMessage}</p>
+                <p className={styles.captureSupport}>Tip: keep the leaf centered and avoid shadows for higher confidence.</p>
+              </div>
+              {capturedFrame ? <p className={styles.captureAuto}>Captured frame ready for scan.</p> : <p className={styles.captureAuto}>Ready when you are.</p>}
+              <div className={styles.captureActions}>
+                <button type="button" className={styles.secondaryBtn} onClick={captureForScan} disabled={isStartingCamera || state === "scanning"}>
+                  Capture
+                </button>
+                <button
+                  type="button"
+                  className={styles.primaryBtn}
+                  onClick={() => void startSmartScan()}
+                  disabled={isStartingCamera || state === "scanning"}
+                >
+                  {state === "scanning" ? "Scanning..." : "Scan"}
+                </button>
+              </div>
             </div>
-            {capturedFrame ? <p className={styles.captureAuto}>Captured frame ready for scan.</p> : <p className={styles.captureAuto}>Ready when you are.</p>}
-            <div className={styles.captureActions}>
-              <button type="button" className={styles.secondaryBtn} onClick={captureForScan} disabled={isStartingCamera || state === "scanning"}>
-                Capture
-              </button>
-              <button
-                type="button"
-                className={styles.primaryBtn}
-                onClick={() => void startSmartScan()}
-                disabled={isStartingCamera || state === "scanning"}
-              >
-                {state === "scanning" ? "Scanning..." : "Scan"}
-              </button>
-            </div>
-          </div>
+          </>
         ) : null}
 
         {viewMode === "results" ? (
@@ -566,6 +571,15 @@ export default function PlantScanner() {
             </div>
 
             <div className={styles.captureActions}>
+              {closeMatches.length > 0 ? (
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  onClick={() => setShowCloseMatches((current) => !current)}
+                >
+                  {showCloseMatches ? "Hide Close Matches" : "Close Matches"}
+                </button>
+              ) : null}
               <button type="button" className={styles.primaryBtn} onClick={nextDetection}>
                 Scan Next Plant
               </button>
@@ -573,6 +587,20 @@ export default function PlantScanner() {
                 Done
               </button>
             </div>
+
+            {showCloseMatches && closeMatches.length > 0 ? (
+              <div className={styles.closeMatchesPanel}>
+                <p className={styles.closeMatchesTitle}>Close match list</p>
+                <ul className={styles.closeMatchesList}>
+                  {closeMatches.map((item, index) => (
+                    <li key={`${item.name}-close-${index}`}>
+                      <span>{item.name}</span>
+                      <strong>{Math.round(item.confidence * 100)}%</strong>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ) : null}
 

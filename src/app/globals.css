@@ -34,7 +34,10 @@ body {
 }
 
 .home-shell {
-  display: block;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  padding-top: max(1rem, env(safe-area-inset-top));
 }
 
 .scanner-launch {
@@ -916,6 +919,10 @@ body {
 }
 
 @media (max-width: 640px) {
+  .home-shell {
+    padding-inline: 0.75rem;
+  }
+
   .scanner-launch {
     min-height: calc(100dvh - 10.2rem);
   }

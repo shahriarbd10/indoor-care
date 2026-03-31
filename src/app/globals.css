@@ -716,6 +716,27 @@ body {
   background: #d7e6d7;
 }
 
+.library-image-hidden {
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(145deg, rgba(214, 230, 214, 0.9), rgba(188, 211, 191, 0.86)),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(123, 153, 127, 0.18) 0,
+      rgba(123, 153, 127, 0.18) 8px,
+      rgba(234, 245, 234, 0.22) 8px,
+      rgba(234, 245, 234, 0.22) 16px
+    );
+}
+
+.library-image-hidden p {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 620;
+  color: #335342;
+}
+
 .library-content {
   padding: 0.82rem;
   display: grid;

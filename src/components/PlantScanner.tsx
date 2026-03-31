@@ -31,9 +31,11 @@ type DetectState = "idle" | "scanning" | "processing" | "error";
 const CAPTURE_WIDTH = 720;
 const CAPTURE_HEIGHT = 960;
 const MODERATE_CONFIDENCE_THRESHOLD = 0.4;
+const MIN_DETECTED_CONFIDENCE = 0.15;
 const MIN_ALTERNATIVE_CONFIDENCE = 0.2;
-const MIN_SCAN_DURATION_MS = 3500;
-const RECHECK_DELAY_MS = 1300;
+const SCAN_PHASE_DURATION_MS = 5000;
+const QUALITY_BOOST_DURATION_MS = 2500;
+const RECHECK_DELAY_MS = 900;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -83,6 +85,7 @@ export default function PlantScanner() {
   const [isStartingCamera, setIsStartingCamera] = useState(false);
   const [state, setState] = useState<DetectState>("idle");
   const [statusMessage, setStatusMessage] = useState("Frame one leaf clearly for the best result.");
+  const [scanHeadline, setScanHeadline] = useState("Smart scan ready");
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [savedImageUrl, setSavedImageUrl] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
@@ -199,6 +202,7 @@ export default function PlantScanner() {
       setViewMode("results");
       setState("idle");
       setStatusMessage("Best match found with moderate confidence. Tap a card for full details.");
+      setScanHeadline("Detection complete");
 
       stopSmartScan();
       releaseCamera();
@@ -219,9 +223,13 @@ export default function PlantScanner() {
 
     const scanStart = Date.now();
     let attempts = 0;
+    let bestPrediction: Prediction | null = null;
+    let bestFrame: string | null = null;
+    let bestConfidence = 0;
 
     setState("scanning");
-    setStatusMessage("Hold steady. Running a 3-5 second quality scan...");
+    setScanHeadline("Scanning in progress");
+    setStatusMessage("Keep the leaf centered in the marked area.");
 
     while (scanLoopActiveRef.current && sessionToken === scanSessionTokenRef.current) {
       const frame = captureFrameFromVideo();
@@ -232,10 +240,9 @@ export default function PlantScanner() {
 
       attempts += 1;
       const elapsed = Date.now() - scanStart;
-      if (elapsed < MIN_SCAN_DURATION_MS) {
-        setStatusMessage(`Analyzing frame ${attempts}. Keep leaf centered for a better scan...`);
-      } else {
-        setStatusMessage("Continuing scan for higher confidence. Move slightly closer if needed.");
+      const firstPhaseRemaining = Math.max(0, Math.ceil((SCAN_PHASE_DURATION_MS - elapsed) / 1000));
+      if (elapsed < SCAN_PHASE_DURATION_MS) {
+        setStatusMessage(`Analyzing frame ${attempts}. Keep leaf centered... ${firstPhaseRemaining}s`);
       }
 
       const { prediction } = await identifyFromImage(frame);
@@ -243,21 +250,83 @@ export default function PlantScanner() {
         return;
       }
 
-      if (prediction && prediction.confidence >= MODERATE_CONFIDENCE_THRESHOLD && elapsed >= MIN_SCAN_DURATION_MS) {
-        await openResultFromPrediction(frame, prediction);
-        return;
+      if (prediction && prediction.confidence > bestConfidence) {
+        bestPrediction = prediction;
+        bestFrame = frame;
+        bestConfidence = prediction.confidence;
       }
 
-      if (prediction && prediction.confidence >= MODERATE_CONFIDENCE_THRESHOLD && elapsed < MIN_SCAN_DURATION_MS) {
-        setStatusMessage("Strong match found. Validating a few more frames for stability...");
-      }
-
-      if (prediction && prediction.confidence < MODERATE_CONFIDENCE_THRESHOLD) {
-        setStatusMessage("Still scanning... For better scan, move closer and keep the leaf in focus.");
+      if (elapsed >= SCAN_PHASE_DURATION_MS) {
+        break;
       }
 
       await sleep(RECHECK_DELAY_MS);
     }
+
+    if (!scanLoopActiveRef.current || sessionToken !== scanSessionTokenRef.current) {
+      return;
+    }
+
+    if (bestPrediction && bestFrame && bestPrediction.confidence >= MODERATE_CONFIDENCE_THRESHOLD) {
+      await openResultFromPrediction(bestFrame, bestPrediction);
+      return;
+    }
+
+    if (bestPrediction && bestPrediction.confidence < MIN_DETECTED_CONFIDENCE) {
+      setScanHeadline("No clear plant detected");
+      setStatusMessage("No plant detected. Please scan a plant leaf.");
+    }
+
+    const secondPhaseStart = Date.now();
+    setScanHeadline("Quality boost scan");
+    setStatusMessage("Keep camera still for 2-3 seconds for better quality.");
+
+    while (scanLoopActiveRef.current && sessionToken === scanSessionTokenRef.current) {
+      const frame = captureFrameFromVideo();
+      if (!frame) {
+        await sleep(250);
+        continue;
+      }
+
+      const elapsed = Date.now() - secondPhaseStart;
+      const remaining = Math.max(0, Math.ceil((QUALITY_BOOST_DURATION_MS - elapsed) / 1000));
+      setStatusMessage(`Keep camera still for better quality... ${remaining}s`);
+
+      const { prediction } = await identifyFromImage(frame);
+      if (!scanLoopActiveRef.current || sessionToken !== scanSessionTokenRef.current) {
+        return;
+      }
+
+      if (prediction && prediction.confidence > bestConfidence) {
+        bestPrediction = prediction;
+        bestFrame = frame;
+        bestConfidence = prediction.confidence;
+      }
+
+      if (elapsed >= QUALITY_BOOST_DURATION_MS) {
+        break;
+      }
+
+      await sleep(RECHECK_DELAY_MS);
+    }
+
+    if (!scanLoopActiveRef.current || sessionToken !== scanSessionTokenRef.current) {
+      return;
+    }
+
+    if (bestPrediction && bestFrame && bestPrediction.confidence >= MODERATE_CONFIDENCE_THRESHOLD) {
+      await openResultFromPrediction(bestFrame, bestPrediction);
+      return;
+    }
+
+    stopSmartScan();
+    setState("error");
+    setScanHeadline("No plant detected");
+    setStatusMessage(
+      bestPrediction && bestPrediction.confidence >= MIN_DETECTED_CONFIDENCE
+        ? "We found weak matches only. Keep camera still, center one leaf, and scan again."
+        : "No plant detected. Please scan a plant leaf and keep it centered."
+    );
   }, [cameraOpen, captureFrameFromVideo, identifyFromImage, openResultFromPrediction]);
 
   const openCamera = useCallback(async () => {
@@ -271,6 +340,7 @@ export default function PlantScanner() {
     setResults([]);
     setSelectedIndex(0);
     setSavedImageUrl(null);
+    setScanHeadline("Smart scan ready");
     setStatusMessage("Opening camera...");
     setCameraOpen(true);
   }, [isStartingCamera, stopSmartScan]);
@@ -286,6 +356,7 @@ export default function PlantScanner() {
     setBackgroundImage(null);
     setSavedImageUrl(null);
     setState("idle");
+    setScanHeadline("Smart scan ready");
     setStatusMessage("Frame one leaf clearly for the best result.");
   }, [releaseCamera, stopSmartScan]);
 
@@ -327,6 +398,7 @@ export default function PlantScanner() {
         if (cancelled) return;
 
         setState("scanning");
+        setScanHeadline("Scanning in progress");
         setStatusMessage("Preparing smart scan...");
 
         await startSmartScan();
@@ -402,7 +474,11 @@ export default function PlantScanner() {
 
         {viewMode === "capture" ? (
           <div className={styles.captureLayer}>
+            <div className={styles.guideFrame}>
+              <span className={styles.guideLabel}>Keep leaf centered</span>
+            </div>
             <div className={styles.statusCard}>
+              <p className={styles.scanHeadline}>{scanHeadline}</p>
               <p className={styles.captureHint}>{statusMessage}</p>
               <p className={styles.captureSupport}>Tip: keep the leaf centered and avoid shadows for higher confidence.</p>
             </div>

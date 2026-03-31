@@ -92,7 +92,9 @@ export default function LibraryPage() {
         <section className="library-grid">
           {scans.map((scan) => (
             <article key={scan.id} className="library-card">
-              <img className="library-image" src={scan.imageUrl} alt={scan.plantName} loading="lazy" />
+              <div className="library-image library-image-hidden">
+                <p>Image preview hidden for now</p>
+              </div>
               <div className="library-content">
                 <p className="library-kicker">{scan.source.toUpperCase()}</p>
                 <h2>{scan.plantName}</h2>

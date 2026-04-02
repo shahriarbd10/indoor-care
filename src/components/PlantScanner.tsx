@@ -32,6 +32,8 @@ const CAPTURE_WIDTH = 720;
 const CAPTURE_HEIGHT = 960;
 const MODERATE_CONFIDENCE_THRESHOLD = 0.4;
 const MIN_ALTERNATIVE_CONFIDENCE = 0.02;
+const COUNTDOWN_SECONDS = 3;
+const COUNTDOWN_TICK_MS = 100;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -211,78 +213,54 @@ export default function PlantScanner() {
     scanSessionTokenRef.current += 1;
     const sessionToken = scanSessionTokenRef.current;
 
-    // Phase 1: Search Loop (Immediate Analyzing)
-    setState("scanning");
-    setScanHeadline("Searching...");
-    setStatusMessage("Hold steady while we identify the leaf...");
+    setState("countdown");
+    setScanHeadline("Get ready");
+    setStatusMessage("Capturing in 3 seconds. Keep the leaf centered.");
 
-    let bestDoc: Prediction | null = null;
-    let bestImg: string | null = null;
-    let maxConf = 0;
-    const searchStart = Date.now();
+    const countdownStart = Date.now();
+    const countdownDuration = COUNTDOWN_SECONDS * 1000;
 
     while (scanLoopActiveRef.current && sessionToken === scanSessionTokenRef.current) {
-      const frameFile = captureFrameFromVideo();
-      if (!frameFile) {
-        await sleep(200);
-        continue;
+      const elapsed = Date.now() - countdownStart;
+      const remainingMs = countdownDuration - elapsed;
+
+      if (remainingMs <= 0) {
+        break;
       }
 
-      const { prediction } = await identifyFromImage(frameFile);
-      if (!scanLoopActiveRef.current || sessionToken !== scanSessionTokenRef.current) return;
-
-      if (prediction && prediction.confidence > 0.35) {
-        bestDoc = prediction;
-        bestImg = frameFile;
-        maxConf = prediction.confidence;
-        break; // Match found, exit Phase 1
-      }
-
-      if (Date.now() - searchStart > 10000) {
-        stopSmartScan();
-        setState("error");
-        setScanHeadline("No match");
-        setStatusMessage("Could not identify leaf. Try centering it better and scan again.");
-        return;
-      }
-      await sleep(200);
+      const displaySeconds = Math.ceil(remainingMs / 1000);
+      setCountDown(displaySeconds);
+      await sleep(COUNTDOWN_TICK_MS);
     }
 
     if (!scanLoopActiveRef.current || sessionToken !== scanSessionTokenRef.current) return;
 
-    // Phase 2: Final Countdown (Hold Steady)
-    setState("countdown");
-    setScanHeadline("Matching found!");
-    setStatusMessage("Hold still for final optimization...");
-
-    for (let i = 3; i > 0; i--) {
-      if (!scanLoopActiveRef.current || sessionToken !== scanSessionTokenRef.current) return;
-      setCountDown(i);
-      
-      // Optional: Refine during countdown
-      if (i > 1) {
-        const frame = captureFrameFromVideo();
-        if (frame) {
-          const { prediction } = await identifyFromImage(frame);
-          if (prediction && prediction.confidence > maxConf) {
-            bestDoc = prediction;
-            bestImg = frame;
-            maxConf = prediction.confidence;
-          }
-        }
-      }
-      await sleep(1000);
-    }
     setCountDown(null);
+    setState("processing");
+    setScanHeadline("Capturing now");
+    setStatusMessage("Analyzing captured image...");
 
-    if (bestDoc && bestImg) {
-      await openResultFromPrediction(bestImg, bestDoc);
-    } else {
+    const captured = captureFrameFromVideo();
+    if (!captured) {
       stopSmartScan();
       setState("error");
-      setScanHeadline("No detection");
-      setStatusMessage("Lost the match during countdown. Please try again.");
+      setScanHeadline("Capture failed");
+      setStatusMessage("Could not capture image. Please hold steady and try again.");
+      return;
     }
+
+    const { prediction, error } = await identifyFromImage(captured);
+    if (!scanLoopActiveRef.current || sessionToken !== scanSessionTokenRef.current) return;
+
+    if (prediction) {
+      await openResultFromPrediction(captured, prediction);
+      return;
+    }
+
+    stopSmartScan();
+    setState("error");
+    setScanHeadline("No detection");
+    setStatusMessage(error ?? "No plant detected from the captured image. Please try again.");
   }, [cameraOpen, captureFrameFromVideo, identifyFromImage, openResultFromPrediction, stopSmartScan]);
 
   const openCamera = useCallback(async () => {

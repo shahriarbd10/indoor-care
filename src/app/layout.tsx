@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import BottomNav from "@/components/BottomNav";
+import { developerInfo } from "@/lib/developer";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,6 +17,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Indoor Care Scanner",
   description: "Live plant identification from your camera feed",
+  creator: developerInfo.name,
+  authors: [{ name: developerInfo.name }],
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
     shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import DeveloperInfoCard from "@/components/DeveloperInfoCard";
 
 type SavedScan = {
   id: string;
@@ -21,10 +22,28 @@ type SavedScan = {
   createdAtClient?: string;
 };
 
+type ScansResponse = {
+  scans?: SavedScan[];
+  error?: string;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+};
+
+const PAGE_SIZE = 12;
+
 export default function LibraryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [scans, setScans] = useState<SavedScan[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalScans, setTotalScans] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     let ignore = false;
@@ -34,8 +53,8 @@ export default function LibraryPage() {
       setError(null);
 
       try {
-        const response = await fetch("/api/scans", { cache: "no-store" });
-        const payload = (await response.json()) as { scans?: SavedScan[]; error?: string };
+        const response = await fetch(`/api/scans?page=${page}&limit=${PAGE_SIZE}`, { cache: "no-store" });
+        const payload = (await response.json()) as ScansResponse;
 
         if (!response.ok) {
           throw new Error(payload.error ?? "Unable to fetch saved scans.");
@@ -43,6 +62,8 @@ export default function LibraryPage() {
 
         if (!ignore) {
           setScans(payload.scans ?? []);
+          setTotalScans(payload.pagination?.total ?? 0);
+          setTotalPages(payload.pagination?.totalPages ?? 1);
         }
       } catch (err) {
         if (!ignore) {
@@ -59,7 +80,7 @@ export default function LibraryPage() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [page]);
 
   const totalHighConfidence = useMemo(() => scans.filter((item) => item.confidence >= 0.7).length, [scans]);
 
@@ -74,11 +95,11 @@ export default function LibraryPage() {
       <section className="page-grid">
         <article className="option-card">
           <h2>Total Scans</h2>
-          <p>{scans.length} scans saved</p>
+          <p>{totalScans} scans saved</p>
         </article>
         <article className="option-card">
           <h2>High Confidence</h2>
-          <p>{totalHighConfidence} scans above 70% confidence</p>
+          <p>{totalHighConfidence} scans on this page above 70% confidence</p>
         </article>
       </section>
 
@@ -92,8 +113,8 @@ export default function LibraryPage() {
         <section className="library-grid">
           {scans.map((scan) => (
             <article key={scan.id} className="library-card">
-              <div className="library-image library-image-hidden">
-                <p>Image preview hidden for now</p>
+              <div className="library-image">
+                <img src={scan.imageUrl} alt={`Saved scan of ${scan.plantName}`} loading="lazy" />
               </div>
               <div className="library-content">
                 <p className="library-kicker">{scan.source.toUpperCase()}</p>
@@ -128,6 +149,31 @@ export default function LibraryPage() {
           ))}
         </section>
       ) : null}
+
+      {!isLoading && !error && totalPages > 1 ? (
+        <section className="page-grid" aria-label="Library pagination">
+          <article className="option-card">
+            <h2>Page</h2>
+            <p>
+              {page} of {totalPages}
+            </p>
+            <div className="library-pagination-actions">
+              <button type="button" onClick={() => setPage((prev) => Math.max(1, prev - 1))} disabled={page <= 1}>
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={page >= totalPages}
+              >
+                Next
+              </button>
+            </div>
+          </article>
+        </section>
+      ) : null}
+
+      <DeveloperInfoCard compact />
     </main>
   );
 }

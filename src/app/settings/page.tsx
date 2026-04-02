@@ -1,3 +1,5 @@
+import DeveloperInfoCard from "@/components/DeveloperInfoCard";
+
 export default function SettingsPage() {
   return (
     <main className="app-shell page-shell">
@@ -17,6 +19,8 @@ export default function SettingsPage() {
           <p>Adjust the minimum confidence needed before fallback is triggered.</p>
         </article>
       </section>
+
+      <DeveloperInfoCard compact />
     </main>
   );
 }

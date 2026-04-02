@@ -22,6 +22,29 @@ type ProviderResult = {
 
 const MODERATE_CONFIDENCE_THRESHOLD = Number(process.env.PLANT_CONFIDENCE_THRESHOLD ?? "0.4");
 const MIN_ALTERNATIVE_CONFIDENCE = 0.2;
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+
+function estimateBase64DecodedBytes(dataUrl: string): number {
+  const commaIndex = dataUrl.indexOf(",");
+  if (commaIndex < 0) return 0;
+
+  const encoded = dataUrl.slice(commaIndex + 1).trim();
+  if (!encoded) return 0;
+
+  const padding = encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0;
+  return Math.floor((encoded.length * 3) / 4) - padding;
+}
+
+function isSupportedImageDataUrl(dataUrl: string): boolean {
+  return /^data:image\/(jpeg|jpg|png|webp);base64,/i.test(dataUrl);
+}
+
+function normalizeThreshold(value: number): number {
+  if (!Number.isFinite(value)) return 0.4;
+  if (value < 0) return 0;
+  if (value > 1) return 1;
+  return value;
+}
 
 function decodeDataUrl(input: string): Buffer | null {
   const commaIndex = input.indexOf(",");
@@ -183,13 +206,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "imageBase64 is required." }, { status: 400 });
     }
 
+    if (!isSupportedImageDataUrl(imageBase64)) {
+      return NextResponse.json({ error: "Unsupported image format." }, { status: 400 });
+    }
+
+    if (estimateBase64DecodedBytes(imageBase64) > MAX_IMAGE_BYTES) {
+      return NextResponse.json({ error: "Image is too large. Maximum supported size is 4MB." }, { status: 413 });
+    }
+
     const imageBuffer = decodeDataUrl(imageBase64);
     if (!imageBuffer) {
       return NextResponse.json({ error: "Invalid image data URL." }, { status: 400 });
     }
 
+    if (imageBuffer.byteLength > MAX_IMAGE_BYTES) {
+      return NextResponse.json({ error: "Image is too large. Maximum supported size is 4MB." }, { status: 413 });
+    }
+
     const primary = await identifyWithPlantnet(imageBuffer);
-    if (primary.ok && primary.result && primary.result.confidence >= MODERATE_CONFIDENCE_THRESHOLD) {
+    const threshold = normalizeThreshold(MODERATE_CONFIDENCE_THRESHOLD);
+
+    if (primary.ok && primary.result && primary.result.confidence >= threshold) {
       return NextResponse.json(primary.result, { status: 200 });
     }
 

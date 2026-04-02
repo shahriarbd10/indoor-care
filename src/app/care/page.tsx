@@ -1,3 +1,5 @@
+import DeveloperInfoCard from "@/components/DeveloperInfoCard";
+
 export default function CarePage() {
   return (
     <main className="app-shell page-shell">
@@ -17,6 +19,8 @@ export default function CarePage() {
           <p>Check if your space matches low, medium, or bright light needs.</p>
         </article>
       </section>
+
+      <DeveloperInfoCard compact />
     </main>
   );
 }

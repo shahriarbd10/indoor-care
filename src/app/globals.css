@@ -715,8 +715,14 @@ body {
 .library-image {
   width: 100%;
   height: 190px;
-  object-fit: cover;
   background: #d7e6d7;
+}
+
+.library-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .library-image-hidden {
@@ -786,6 +792,83 @@ body {
 .library-indications span {
   font-size: 0.76rem;
   color: #355742;
+}
+
+.library-pagination-actions {
+  margin-top: 0.7rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.library-pagination-actions button {
+  border: 1px solid rgba(29, 66, 46, 0.2);
+  background: rgba(245, 252, 244, 0.9);
+  color: #1a3f2e;
+  border-radius: 999px;
+  min-height: 2.1rem;
+  padding: 0.25rem 0.9rem;
+  cursor: pointer;
+}
+
+.library-pagination-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.developer-card {
+  margin-top: 1rem;
+  border-radius: 18px;
+  padding: 0.9rem 1rem;
+  background: rgba(246, 254, 244, 0.88);
+  border: 1px solid rgba(29, 66, 46, 0.16);
+  box-shadow: 0 8px 18px rgba(35, 75, 52, 0.1);
+}
+
+.developer-card-compact {
+  max-width: 520px;
+}
+
+.developer-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #4a735b;
+}
+
+.developer-card h2 {
+  margin: 0.25rem 0 0;
+  font-size: 1.08rem;
+  color: #173b2b;
+}
+
+.developer-role {
+  margin: 0.2rem 0 0;
+  color: #2f5742;
+  font-size: 0.9rem;
+}
+
+.developer-links {
+  margin-top: 0.65rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.developer-links a {
+  border: 1px solid rgba(29, 66, 46, 0.2);
+  background: rgba(255, 255, 255, 0.75);
+  color: #1a3f2e;
+  text-decoration: none;
+  border-radius: 999px;
+  min-height: 2rem;
+  padding: 0.3rem 0.8rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.developer-links a:hover {
+  filter: brightness(0.98);
 }
 
 .library-indications strong {

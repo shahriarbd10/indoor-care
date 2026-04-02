@@ -9,6 +9,8 @@ jobs:
   build:
     name: Build & Sign Release APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       # ── 1. Checkout ────────────────────────────────────────────────────────

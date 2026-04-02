@@ -1,0 +1,79 @@
+name: Build Release APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build & Sign Release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Java ────────────────────────────────────────────────────────────
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # ── 3. Gradle cache ────────────────────────────────────────────────────
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      # ── 4. Decode keystore from secret ────────────────────────────────────
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/indoor-care-release.jks
+
+      # ── 5. Build signed release APK ───────────────────────────────────────
+      - name: Build release APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/android/app/indoor-care-release.jks \
+            -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
+            -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
+            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
+
+      # ── 6. Rename APK to indoor-care.apk ─────────────────────────────────
+      - name: Rename APK
+        run: |
+          mv android/app/build/outputs/apk/release/app-release.apk indoor-care.apk
+
+      # ── 7. Upload as workflow artifact ────────────────────────────────────
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: indoor-care
+          path: indoor-care.apk
+          retention-days: 30
+
+      # ── 8. Create / update GitHub Release ────────────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: release-${{ github.run_number }}
+          name: "Indoor Care v1.0 (build ${{ github.run_number }})"
+          body: |
+            ## Indoor Care APK
+            - Branch: `${{ github.ref_name }}`
+            - Commit: `${{ github.sha }}`
+            - Built with: Android Gradle + Capacitor
+          files: indoor-care.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

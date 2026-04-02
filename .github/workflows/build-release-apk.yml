@@ -29,10 +29,10 @@ jobs:
         run: npx cap sync android
 
       # ── 3. Java ────────────────────────────────────────────────────────────
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
 
       # ── 4. Gradle cache ────────────────────────────────────────────────────

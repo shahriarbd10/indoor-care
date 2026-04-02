@@ -15,14 +15,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Java ────────────────────────────────────────────────────────────
+      # ── 2. Node.js + npm install + Capacitor sync ─────────────────────────
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Capacitor sync (generates android plugin files)
+        run: npx cap sync android
+
+      # ── 3. Java ────────────────────────────────────────────────────────────
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # ── 3. Gradle cache ────────────────────────────────────────────────────
+      # ── 4. Gradle cache ────────────────────────────────────────────────────
       - name: Cache Gradle packages
         uses: actions/cache@v4
         with:
@@ -32,12 +45,12 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      # ── 4. Decode keystore from secret ────────────────────────────────────
+      # ── 5. Decode keystore from secret ────────────────────────────────────
       - name: Decode keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/indoor-care-release.jks
 
-      # ── 5. Build signed release APK ───────────────────────────────────────
+      # ── 6. Build signed release APK ───────────────────────────────────────
       - name: Build release APK
         working-directory: android
         run: |
@@ -48,12 +61,12 @@ jobs:
             -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
             -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
 
-      # ── 6. Rename APK to indoor-care.apk ─────────────────────────────────
+      # ── 7. Rename APK to indoor-care.apk ─────────────────────────────────
       - name: Rename APK
         run: |
           mv android/app/build/outputs/apk/release/app-release.apk indoor-care.apk
 
-      # ── 7. Upload as workflow artifact ────────────────────────────────────
+      # ── 8. Upload as workflow artifact ────────────────────────────────────
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -61,7 +74,7 @@ jobs:
           path: indoor-care.apk
           retention-days: 30
 
-      # ── 8. Create / update GitHub Release ────────────────────────────────
+      # ── 9. Create / update GitHub Release ────────────────────────────────
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:

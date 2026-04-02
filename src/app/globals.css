@@ -626,11 +626,63 @@ body {
   filter: brightness(1.08);
 }
 
+@keyframes fade-up-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-soft {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes nav-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 .page-shell {
   width: min(1100px, 100%);
   margin: 0 auto;
   display: grid;
   gap: 1rem;
+}
+
+.page-shell > * {
+  opacity: 0;
+  animation: fade-up-enter 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.page-shell > *:nth-child(1) {
+  animation-delay: 60ms;
+}
+
+.page-shell > *:nth-child(2) {
+  animation-delay: 140ms;
+}
+
+.page-shell > *:nth-child(3) {
+  animation-delay: 220ms;
+}
+
+.page-shell > *:nth-child(4) {
+  animation-delay: 300ms;
 }
 
 .page-hero {
@@ -710,7 +762,16 @@ body {
   background: rgba(255, 255, 255, 0.86);
   border: 1px solid rgba(29, 66, 46, 0.1);
   box-shadow: 0 10px 24px rgba(35, 75, 52, 0.12);
+  opacity: 0;
+  animation: fade-up-enter 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
+
+.library-grid .library-card:nth-child(1) { animation-delay: 80ms; }
+.library-grid .library-card:nth-child(2) { animation-delay: 120ms; }
+.library-grid .library-card:nth-child(3) { animation-delay: 160ms; }
+.library-grid .library-card:nth-child(4) { animation-delay: 200ms; }
+.library-grid .library-card:nth-child(5) { animation-delay: 240ms; }
+.library-grid .library-card:nth-child(6) { animation-delay: 280ms; }
 
 .library-image {
   width: 100%;
@@ -822,6 +883,8 @@ body {
   background: rgba(246, 254, 244, 0.88);
   border: 1px solid rgba(29, 66, 46, 0.16);
   box-shadow: 0 8px 18px rgba(35, 75, 52, 0.1);
+  opacity: 0;
+  animation: fade-in-soft 460ms ease-out 280ms both;
 }
 
 .developer-card-compact {
@@ -921,6 +984,8 @@ body {
   padding: 0.34rem;
   z-index: 50;
   box-shadow: 0 10px 28px rgba(20, 43, 31, 0.14);
+  opacity: 0;
+  animation: nav-enter 560ms cubic-bezier(0.2, 0.7, 0.2, 1) 180ms both;
 }
 
 .bottom-nav-item {
@@ -969,6 +1034,21 @@ body {
 
 .hidden {
   display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-shell > *,
+  .library-card,
+  .developer-card,
+  .bottom-nav {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .bottom-nav-item {
+    transition: none;
+  }
 }
 
 @media (min-width: 960px) {

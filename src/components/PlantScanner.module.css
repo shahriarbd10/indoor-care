@@ -3,6 +3,29 @@
   margin: 0 auto;
   padding-inline: 0.3rem;
   padding-bottom: 6.2rem;
+  animation: scannerFadeUp 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes scannerFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scannerHeaderIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .phoneCard {
@@ -17,6 +40,8 @@
   box-shadow: 0 26px 58px rgba(10, 26, 23, 0.28);
   background-size: cover;
   background-position: center;
+  opacity: 0;
+  animation: scannerFadeUp 620ms cubic-bezier(0.2, 0.7, 0.2, 1) 70ms both;
 }
 
 .video {
@@ -60,6 +85,7 @@
   border: 1px solid rgba(220, 248, 214, 0.24);
   background: rgba(18, 30, 28, 0.46);
   backdrop-filter: blur(10px);
+  animation: scannerHeaderIn 420ms ease-out 220ms both;
 }
 
 .scanOverline {
@@ -79,10 +105,12 @@
 
 .iconButtonLeft {
   left: 1rem;
+  animation: scannerHeaderIn 420ms ease-out 180ms both;
 }
 
 .iconButtonRight {
   right: 1rem;
+  animation: scannerHeaderIn 420ms ease-out 180ms both;
 }
 
 .captureLayer {
@@ -170,6 +198,8 @@
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
   position: relative;
   z-index: 20;
+  opacity: 0;
+  animation: scannerFadeUp 560ms cubic-bezier(0.2, 0.7, 0.2, 1) 220ms both;
 }
 .floatingThumb {
   width: 3.2rem;
@@ -306,6 +336,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  animation: scannerFadeUp 460ms ease-out both;
 }
 
 .detailsCard {
@@ -624,6 +655,7 @@
   display: grid;
   place-items: center;
   padding-bottom: 6rem;
+  animation: scannerFadeUp 500ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
 .homeCard {
@@ -634,6 +666,8 @@
   background: rgba(247, 255, 245, 0.8);
   box-shadow: 0 18px 35px rgba(22, 59, 38, 0.16);
   padding: clamp(1rem, 4vw, 1.4rem);
+  opacity: 0;
+  animation: scannerFadeUp 560ms cubic-bezier(0.2, 0.7, 0.2, 1) 90ms both;
 }
 
 .homeCard h1 {
@@ -681,5 +715,30 @@
   .primaryBtn,
   .secondaryBtn {
     flex: 1 1 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrapper,
+  .phoneCard,
+  .scanHeader,
+  .iconButtonLeft,
+  .iconButtonRight,
+  .externalInfoCard,
+  .resultsLayer,
+  .detailsLayer,
+  .homeShell,
+  .homeCard,
+  .scanLine {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .mainScanBtn,
+  .resultCard,
+  .secondaryBtn,
+  .primaryBtn {
+    transition: none !important;
   }
 }
